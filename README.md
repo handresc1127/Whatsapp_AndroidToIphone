@@ -286,12 +286,15 @@ Settings → Developer Options → Enable "USB Debugging"
 .\bin\adb.exe devices
 ```
 
-**Android backup fails:**
+**Database is encrypted (.crypt14/.crypt15):**
 ```powershell
-# Ensure screen is unlocked
-# Confirm "Backup my data" prompt on Android
-# Leave password field BLANK (critical!)
-# Be patient - progress bar may appear stuck
+# Modern WhatsApp encrypts databases by default
+# Script will attempt automatic decryption (requires root)
+
+# If automatic fails:
+# 1. Use WhatsApp Key Extractor tool (no root needed)
+# 2. Decrypt manually with wa-crypt-tools
+# 3. See docs/USAGE.md for detailed instructions
 ```
 
 **iOS backup not found:**

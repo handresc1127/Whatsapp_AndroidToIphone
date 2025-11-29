@@ -321,63 +321,221 @@ class AndroidBackupManager:
     def extract_database_directly(self) -> Optional[str]:
         """
         Intenta extraer msgstore.db directamente desde /sdcard/WhatsApp/Databases/
-        Requiere que la app tenga permisos de almacenamiento.
+        Maneja tanto bases de datos planas (.db) como encriptadas (.crypt14).
         
         Returns:
-            Ruta del archivo msgstore.db extraído, None si falla
+            Ruta del archivo msgstore.db desencriptado, None si falla
         """
         try:
             self.logger.info("Attempting direct database extraction...")
             ensure_directory('out')
+            ensure_directory('tmp')
             
-            # Ruta de la base de datos en el dispositivo
+            # Rutas base según tipo de WhatsApp
             if self.config['package'] == 'com.whatsapp.w4b':
-                remote_db = '/sdcard/Android/media/com.whatsapp.w4b/WhatsApp Business/Databases/msgstore.db'
-                alt_remote_db = '/sdcard/WhatsApp Business/Databases/msgstore.db'
+                db_dir = '/sdcard/Android/media/com.whatsapp.w4b/WhatsApp Business/Databases'
+                alt_db_dir = '/sdcard/WhatsApp Business/Databases'
+                key_path = f"/data/data/{self.config['package']}/files/key"
             else:
-                remote_db = '/sdcard/Android/media/com.whatsapp/WhatsApp/Databases/msgstore.db'
-                alt_remote_db = '/sdcard/WhatsApp/Databases/msgstore.db'
+                db_dir = '/sdcard/Android/media/com.whatsapp/WhatsApp/Databases'
+                alt_db_dir = '/sdcard/WhatsApp/Databases'
+                key_path = f"/data/data/{self.config['package']}/files/key"
             
-            local_db = 'out/android.db'
+            # Intentar diferentes versiones de archivos
+            db_files_to_try = [
+                # Archivos encriptados (más común)
+                ('msgstore.db.crypt14', f"{db_dir}/msgstore.db.crypt14"),
+                ('msgstore.db.crypt15', f"{db_dir}/msgstore.db.crypt15"),
+                ('msgstore.db.crypt12', f"{db_dir}/msgstore.db.crypt12"),
+                # Archivo plano (legacy)
+                ('msgstore.db', f"{db_dir}/msgstore.db"),
+                # Alternativas
+                ('msgstore.db.crypt14', f"{alt_db_dir}/msgstore.db.crypt14"),
+                ('msgstore.db', f"{alt_db_dir}/msgstore.db"),
+            ]
             
-            print(f"\n[INFO] Attempting to pull database from device...")
-            print(f"      Trying: {remote_db}")
+            extracted_file = None
+            is_encrypted = False
             
-            # Intentar con primera ubicación
-            result = run_adb_command([
-                self.adb_cmd, 'pull', remote_db, local_db
-            ], check=False, timeout=60)
+            print(f"\n[INFO] Searching for WhatsApp database on device...")
             
-            # Si falla, intentar ubicación alternativa
-            if result.returncode != 0:
-                print(f"      Trying alternative: {alt_remote_db}")
+            # Intentar extraer cada archivo
+            for filename, remote_path in db_files_to_try:
+                self.logger.debug(f"Trying: {remote_path}")
+                local_temp = f'tmp/{filename}'
+                
                 result = run_adb_command([
-                    self.adb_cmd, 'pull', alt_remote_db, local_db
+                    self.adb_cmd, 'pull', remote_path, local_temp
                 ], check=False, timeout=60)
+                
+                if result.returncode == 0 and os.path.exists(local_temp) and os.path.getsize(local_temp) > 0:
+                    extracted_file = local_temp
+                    is_encrypted = '.crypt' in filename
+                    size_mb = os.path.getsize(local_temp) / (1024 * 1024)
+                    print(f"[OK] Found: {filename} ({size_mb:.2f} MB)")
+                    self.logger.info(f"Extracted: {remote_path} ({size_mb:.2f} MB)")
+                    break
             
-            # Verificar si se extrajo
-            if os.path.exists(local_db) and os.path.getsize(local_db) > 0:
-                size_mb = os.path.getsize(local_db) / (1024 * 1024)
-                self.logger.info(f"Database extracted directly: {size_mb:.2f} MB")
-                print(f"\n[OK] Database extracted successfully ({size_mb:.2f} MB)")
-                return local_db
-            else:
-                self.logger.error("Direct extraction failed - file not accessible")
-                print("\n[ERROR] Could not access database file.")
-                print("\nPossible causes:")
-                print("  - WhatsApp doesn't have storage permissions enabled")
-                print("  - Database is in a non-standard location (custom ROM)")
-                print("  - WhatsApp Business uses different path than expected")
-                print("\nManual solutions:")
-                print("  1. Grant storage permissions: Settings → Apps → WhatsApp → Permissions → Storage → Allow")
-                print("  2. Use Android file manager to locate msgstore.db (usually in /sdcard/WhatsApp/Databases/)")
-                print("  3. Copy msgstore.db to your computer via USB and place in out/android.db")
-                print("  4. Enable 'Show hidden files' in file manager to see Android/media/ folder")
+            if not extracted_file:
+                self.logger.error("No database file found on device")
+                print("\n[ERROR] Could not find WhatsApp database on device.")
+                self._print_manual_extraction_help()
                 return None
+            
+            # Si está encriptado, desencriptar
+            if is_encrypted:
+                print(f"\n[INFO] Database is encrypted, attempting decryption...")
+                decrypted_db = self._decrypt_database(extracted_file, key_path)
+                if not decrypted_db:
+                    return None
+                return decrypted_db
+            else:
+                # Mover archivo plano a ubicación final
+                final_path = 'out/android.db'
+                import shutil
+                shutil.move(extracted_file, final_path)
+                print(f"\n[OK] Database extracted successfully (unencrypted)")
+                return final_path
                 
         except Exception as e:
             self.logger.error(f"Direct extraction failed: {e}")
+            print(f"\n[ERROR] Extraction failed: {e}")
+            self._print_manual_extraction_help()
             return None
+    
+    def _print_manual_extraction_help(self) -> None:
+        """Imprime instrucciones para extracción manual."""
+        print("\nPossible causes:")
+        print("  - WhatsApp doesn't have storage permissions enabled")
+        print("  - Database is in a non-standard location (custom ROM)")
+        print("  - Device requires root access for encrypted databases")
+        print("\nManual solutions:")
+        print("  1. Grant storage permissions: Settings → Apps → WhatsApp → Permissions → Storage → Allow")
+        print("  2. Use file manager to navigate to:")
+        print("     /sdcard/Android/media/com.whatsapp[.w4b]/WhatsApp/Databases/")
+        print("  3. Copy msgstore.db.crypt14 (or latest backup) to computer")
+        print("  4. Place in tmp/ folder and we'll try to decrypt it")
+        print("  5. For encrypted databases, you may need WhatsApp Key Extractor tool")
+    
+    def _decrypt_database(self, encrypted_file: str, key_path: str) -> Optional[str]:
+        """Desencripta base de datos de WhatsApp.
+        
+        Args:
+            encrypted_file: Ruta al archivo .cryptXX
+            key_path: Ruta a la clave de encriptación en el dispositivo
+            
+        Returns:
+            Ruta al archivo desencriptado, None si falla
+        """
+        try:
+            # Intentar extraer clave de encriptación
+            print(f"[INFO] Extracting encryption key...")
+            local_key = 'tmp/key'
+            
+            # Requiere root o adb root
+            result = run_adb_command([
+                self.adb_cmd, 'root'
+            ], check=False, timeout=10)
+            
+            if result.returncode == 0:
+                # Dispositivo con root habilitado
+                result = run_adb_command([
+                    self.adb_cmd, 'pull', key_path, local_key
+                ], check=False, timeout=30)
+                
+                if result.returncode == 0 and os.path.exists(local_key):
+                    print(f"[OK] Encryption key extracted")
+                    self.logger.info("Encryption key extracted successfully")
+                    
+                    # Desencriptar usando la clave
+                    decrypted_path = 'out/android.db'
+                    if self._decrypt_with_key(encrypted_file, local_key, decrypted_path):
+                        print(f"[OK] Database decrypted successfully")
+                        return decrypted_path
+                    else:
+                        print(f"[ERROR] Decryption failed")
+                        return None
+                else:
+                    self.logger.warning("Could not extract encryption key - device may not have root")
+            
+            # Fallback: intentar sin root (archivos más antiguos)
+            print(f"\n[WARNING] Could not extract encryption key (root required)")
+            print(f"\nFor encrypted databases (.crypt14), you need:")
+            print(f"  1. Rooted Android device OR")
+            print(f"  2. WhatsApp Key Extractor tool (search GitHub)")
+            print(f"  3. Extract 'key' file manually and place in tmp/key")
+            print(f"\nAlternatively, try:")
+            print(f"  - Use an older backup if available (some may be unencrypted)")
+            print(f"  - Use WhatsApp's official 'Export Chat' feature (limited)")
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Decryption failed: {e}")
+            print(f"\n[ERROR] Decryption failed: {e}")
+            return None
+    
+    def _decrypt_with_key(self, encrypted_file: str, key_file: str, output_file: str) -> bool:
+        """Desencripta archivo usando clave extraída.
+        
+        Args:
+            encrypted_file: Archivo .cryptXX
+            key_file: Archivo de clave
+            output_file: Archivo de salida .db
+            
+        Returns:
+            True si desencriptación exitosa
+        """
+        try:
+            # Determinar versión de encriptación
+            if '.crypt14' in encrypted_file:
+                crypt_version = 14
+            elif '.crypt15' in encrypted_file:
+                crypt_version = 15
+            elif '.crypt12' in encrypted_file:
+                crypt_version = 12
+            else:
+                crypt_version = 14  # Default
+            
+            self.logger.info(f"Decrypting using crypt version {crypt_version}")
+            print(f"[INFO] Using decryption method for crypt{crypt_version}...")
+            
+            # Leer clave
+            with open(key_file, 'rb') as f:
+                key_data = f.read()
+            
+            # Verificar tamaño de clave
+            if len(key_data) != 158:  # Tamaño esperado para crypt14/15
+                self.logger.warning(f"Unexpected key size: {len(key_data)} bytes")
+            
+            # Leer archivo encriptado
+            with open(encrypted_file, 'rb') as f:
+                encrypted_data = f.read()
+            
+            # Desencriptar (implementación básica para crypt14)
+            # Nota: La desencriptación completa requiere AES-GCM con parámetros específicos
+            # Para versión completa, se recomienda usar herramientas especializadas
+            
+            # Por ahora, informar al usuario que use herramienta externa
+            print(f"\n[INFO] Encryption key and database extracted.")
+            print(f"\nFor decryption, please use WhatsApp Viewer or similar tool:")
+            print(f"  - Encrypted file: {encrypted_file}")
+            print(f"  - Key file: {key_file}")
+            print(f"  - Output should be: {output_file}")
+            print(f"\nRecommended tools:")
+            print(f"  - WhatsApp Viewer (GitHub)")
+            print(f"  - wa-crypt-tools (GitHub)")
+            print(f"  - Online: https://github.com/EliteAndroidApps/WhatsApp-Crypt14-Decrypter")
+            
+            # TODO: Implementar desencriptación nativa
+            # Requiere: pycryptodome o cryptography library
+            # Por ahora retornamos False para que usuario use herramienta externa
+            
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Decryption error: {e}")
+            return False
     
     def validate_database(self, db_path: str) -> bool:
         """

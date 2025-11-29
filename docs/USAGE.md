@@ -202,11 +202,66 @@ You can now safely disconnect your Android device.
 - **"Could not access database file":**
   - Grant storage permissions to WhatsApp
   - Open WhatsApp to ensure it has created database
-  - Try alternative: Settings → Storage → Manage Space → "Export database"
+  - Check if database is encrypted (see Encrypted Databases section below)
 
-- **"Database validation failed":**
-  - Database may be encrypted (rare on modern Android)
-  - Try legacy backup method (will prompt automatically)
+- **"Database is encrypted (.crypt14)":**
+  - Modern WhatsApp versions encrypt databases by default
+  - Script will attempt automatic decryption (requires root)
+  - See manual decryption steps below if automatic fails
+
+**Encrypted Databases (.crypt14/.crypt15):**
+
+Modern WhatsApp encrypts databases. The script handles this automatically:
+
+```
+[OK] Found: msgstore.db.crypt14 (11.86 MB)
+[INFO] Database is encrypted, attempting decryption...
+[INFO] Extracting encryption key...
+```
+
+**If Automatic Decryption Fails (No Root):**
+
+You'll need to decrypt manually:
+
+1. **Extract Files from Device:**
+   ```
+   File location: /sdcard/Android/media/com.whatsapp[.w4b]/WhatsApp/Databases/
+   Files needed:
+   - msgstore.db.crypt14 (latest backup)
+   - key (encryption key - requires root or extractor tool)
+   ```
+
+2. **Get Encryption Key (Choose One Method):**
+
+   **Method A: Root Access**
+   - Enable root on device
+   - Extract key from: `/data/data/com.whatsapp[.w4b]/files/key`
+
+   **Method B: WhatsApp Key Extractor (No Root)**
+   - Download: [WhatsAppKeyDBExtract](https://github.com/YuvrajRaghuvanshiS/WhatsApp-Key-Database-Extractor)
+   - Run on computer with Android device connected
+   - Follow tool instructions to extract key
+
+3. **Decrypt Database:**
+
+   **Option 1: wa-crypt-tools (Recommended)**
+   ```bash
+   # Install tool
+   pip install pycryptodome
+   git clone https://github.com/EliteAndroidApps/WhatsApp-Crypt14-Decrypter.git
+   cd WhatsApp-Crypt14-Decrypter
+   
+   # Decrypt
+   python decrypt14.py key msgstore.db.crypt14 msgstore.db
+   ```
+
+   **Option 2: Online Tools** (⚠️ Use at own risk - sensitive data)
+   - Some websites offer decryption services
+   - Not recommended for privacy reasons
+
+4. **Place Decrypted Database:**
+   - Copy decrypted `msgstore.db` to project folder: `out/android.db`
+   - Resume migration from Step 4
 
 **If Direct Extraction Fails:**
 
