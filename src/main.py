@@ -173,19 +173,20 @@ def android_backup_process(whatsapp_type, logger):
             print("  - WhatsApp doesn't have storage permissions")
             print("  - Database file is in non-standard location")
             print("  - WhatsApp is not installed or has no data")
+            print("  - Custom ROM with different file structure")
             print()
-            print("Alternative methods:")
-            print("  1. Legacy APK backup (requires downgrade)")
-            print("  2. Manual file transfer")
-            print("  3. Cancel migration")
+            print("Recommended solutions:")
+            print("  1. Grant storage permissions: Settings → Apps → WhatsApp → Permissions → Storage")
+            print("  2. Copy database manually via USB to out/android.db")
+            print("  3. Use Android file manager to locate and export msgstore.db")
+            print("  4. Try WhatsApp cloud backup and download from Google Drive")
+            print()
+            print("Note: This tool no longer supports legacy APK downgrade method.")
+            print("      If direct extraction doesn't work, manual file transfer is required.")
             
-            if confirm_action("\nTry legacy APK backup method?", default=False):
-                android_db = android_mgr.legacy_backup_process()
-                if android_db:
-                    print("\nYou can now safely disconnect your Android device.")
-                    return android_db
-            
-            logger.error("Failed to extract Android database")
+            logger.error("Failed to extract Android database - manual intervention required")
+            print("\n[ERROR] Automatic extraction failed. Please transfer database manually.")
+            print("\nSee docs/USAGE.md for manual extraction instructions.")
             return None
         
         return android_db

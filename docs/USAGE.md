@@ -210,7 +210,7 @@ You can now safely disconnect your Android device.
 
 **If Direct Extraction Fails:**
 
-Script will automatically offer legacy backup method:
+The script will show detailed error messages with manual solutions:
 
 ```
 [WARNING] Direct extraction failed.
@@ -219,20 +219,38 @@ This can happen if:
   - WhatsApp doesn't have storage permissions
   - Database file is in non-standard location
   - WhatsApp is not installed or has no data
+  - Custom ROM with different file structure
 
-Alternative methods:
-  1. Legacy APK backup (requires downgrade)
-  2. Manual file transfer
-  3. Cancel migration
+Recommended solutions:
+  1. Grant storage permissions: Settings → Apps → WhatsApp → Permissions → Storage
+  2. Copy database manually via USB to out/android.db
+  3. Use Android file manager to locate and export msgstore.db
+  4. Try WhatsApp cloud backup and download from Google Drive
 
-Try legacy APK backup method? (yes/no): 
+Note: This tool no longer supports legacy APK downgrade method.
+      If direct extraction doesn't work, manual file transfer is required.
 ```
 
-**Legacy Method Requirements:**
-- Legacy APK must be in `apk/` folder
-- Requires phone number re-verification
-- Takes 15-30 minutes additional time
-- See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for details
+**Manual Database Transfer Steps:**
+
+1. **On Android Device:**
+   - Install a file manager app (e.g., Files by Google, Solid Explorer)
+   - Enable "Show hidden files" in file manager settings
+   - Navigate to one of these locations:
+     - `/sdcard/Android/media/com.whatsapp/WhatsApp/Databases/msgstore.db`
+     - `/sdcard/WhatsApp/Databases/msgstore.db`
+   - Copy `msgstore.db` to `/sdcard/Download/`
+
+2. **Transfer to Computer:**
+   - Connect Android via USB
+   - Open device in File Explorer (Windows) or Finder (macOS)
+   - Navigate to `Internal Storage → Download`
+   - Copy `msgstore.db` to your computer
+
+3. **Place in Migration Tool:**
+   - In project folder, create `out/` directory if it doesn't exist
+   - Rename file to `android.db` and place in `out/` folder
+   - Resume migration from Step 4
 
 ---
 

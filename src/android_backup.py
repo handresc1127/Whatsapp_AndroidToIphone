@@ -364,10 +364,15 @@ class AndroidBackupManager:
             else:
                 self.logger.error("Direct extraction failed - file not accessible")
                 print("\n[ERROR] Could not access database file.")
-                print("\nPossible solutions:")
-                print("  1. Grant storage permissions to WhatsApp")
-                print("  2. Use a file manager to copy msgstore.db to internal storage")
-                print("  3. Try WhatsApp's built-in backup to Google Drive and download")
+                print("\nPossible causes:")
+                print("  - WhatsApp doesn't have storage permissions enabled")
+                print("  - Database is in a non-standard location (custom ROM)")
+                print("  - WhatsApp Business uses different path than expected")
+                print("\nManual solutions:")
+                print("  1. Grant storage permissions: Settings → Apps → WhatsApp → Permissions → Storage → Allow")
+                print("  2. Use Android file manager to locate msgstore.db (usually in /sdcard/WhatsApp/Databases/)")
+                print("  3. Copy msgstore.db to your computer via USB and place in out/android.db")
+                print("  4. Enable 'Show hidden files' in file manager to see Android/media/ folder")
                 return None
                 
         except Exception as e:
@@ -468,11 +473,25 @@ class AndroidBackupManager:
         """
         Ejecuta el proceso completo de backup legacy (downgrade + adb backup).
         
-        SOLO usar como fallback cuando extracción directa falla.
+        ⚠️ DEPRECATED - NO LONGER USED ⚠️
+        
+        This method is preserved for reference only. Modern Android versions
+        (8.0+) prevent APK downgrade without factory reset, making this
+        approach non-viable.
+        
+        Current migration flow uses direct extraction only. If that fails,
+        users must manually transfer the database file.
+        
+        NEVER call this method from the main migration flow.
         
         Returns:
             Ruta del archivo msgstore.db extraído, None si falla
         """
+        raise NotImplementedError(
+            "Legacy backup method is no longer supported. "
+            "APK downgrade is not possible on modern Android versions. "
+            "Use direct extraction or manual file transfer instead."
+        )
         try:
             from .utils import confirm_action
             

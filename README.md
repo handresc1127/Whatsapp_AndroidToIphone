@@ -85,13 +85,6 @@ python main.py
    - For iOS device backups
    - Download: [Apple iTunes](https://www.apple.com/itunes/)
 
-3. **Legacy WhatsApp APK (Optional - for fallback method):**
-   - Version: 2.11.431 - 2.11.498 (only needed if direct extraction fails)
-   - Download from: [APKMirror](https://www.apkmirror.com/apk/whatsapp-inc/whatsapp/) (legal sources only)
-   - Place in: `apk/WhatsApp_2.11.431.apk`
-   - See: [apk/README.md](apk/README.md)
-   - **⚠️ Legal Warning:** Only for personal data migration
-
 ### Device Requirements
 
 **Android:**
@@ -121,8 +114,6 @@ Whatsapp_AndroidToIphone/
 │   ├── adb.exe                # ⚠️ Not included - download required
 │   ├── AdbWinApi.dll          # ⚠️ Not included - download required
 │   └── AdbWinUsbApi.dll       # ⚠️ Not included - download required
-├── apk/                        # Legacy WhatsApp APKs (download separately)
-│   └── WhatsApp_2.11.431.apk  # ⚠️ Not included - download required
 ├── backups/                    # Automatic backups (created at runtime)
 ├── logs/                       # Migration logs (created at runtime)
 ├── tmp/                        # Temporary files (created at runtime)
@@ -141,36 +132,30 @@ Whatsapp_AndroidToIphone/
 
 ## 🔄 How It Works
 
-### Migration Process (6 Steps)
+### Migration Process (4 Steps)
 
 ```
 1. Validate Dependencies
-   ├─ Check Python, ADB, legacy APK
-   ├─ Verify Android device connection
+   ├─ Check Python version (3.8+)
+   ├─ Verify ADB installation
+   ├─ Check Android device connection
    └─ Locate iOS backup directory
    ↓
-2. Backup Current Android WhatsApp
-   ├─ Save current WhatsApp APK
-   └─ Backup /sdcard/WhatsApp/ data
+2. Extract Android Database
+   ├─ Direct extraction via ADB pull
+   ├─ Try multiple paths (Android 10+ scoped storage)
+   ├─ Validate database integrity
+   └─ Fallback to manual transfer if needed
    ↓
-3. Downgrade to Legacy WhatsApp
-   ├─ Uninstall current WhatsApp (keep data)
-   ├─ Install legacy APK (2.11.431)
-   └─ User verifies phone number
-   ↓
-4. Create Android Backup
-   ├─ Execute: adb backup com.whatsapp
-   ├─ User confirms on Android screen
-   └─ Extract msgstore.db from .ab file
-   ↓
-5. Extract and Migrate Database
+3. Migrate Database
    ├─ Read Android msgstore.db
+   ├─ Detect schema version (modern vs legacy)
    ├─ Convert Android schema → iOS schema
    ├─ Convert timestamps (Unix 1970 → Apple 2001 epoch)
    ├─ Migrate messages, contacts, groups
    └─ Validate data integrity
    ↓
-6. Inject into iOS Backup
+4. Inject into iOS Backup
    ├─ Backup original iOS ChatStorage.sqlite
    ├─ Replace with migrated database
    ├─ Update iOS backup Manifest.db
@@ -206,41 +191,36 @@ PS> python main.py
 WhatsApp Android → iOS Migration Tool
 ======================================
 
-[INFO] Step 1/6: Validating dependencies...
+[INFO] Step 1/4: Validating dependencies...
 ✅ Python 3.11.5 detected
 ✅ ADB found: bin\adb.exe (version 35.0.1)
-✅ Legacy WhatsApp APK found: apk\WhatsApp_2.11.431.apk
 ✅ Android device connected: ABC123XYZ (model: SM-G991B)
 ✅ iOS backup directory: C:\Users\...\MobileSync\Backup\
 ✅ Found iOS backup: a1b2c3d4e5f6... (modified: 2025-11-27 14:30)
 
 Press Enter to continue or Ctrl+C to cancel...
 
-[INFO] Step 2/6: Backing up current WhatsApp...
-[OK] APK backup saved: backups/WhatsApp_current_20251128_143022.apk
-[OK] Data backup saved: backups/WhatsApp_data_20251128_143022.tar
+[INFO] Step 2/4: Extracting Android database...
+[OK] Direct extraction successful: tmp/msgstore.db
+[OK] Database validated (127 contacts, 15,234 messages)
 
-[INFO] Step 3/6: Downgrading WhatsApp to legacy version...
-⚠️  MANUAL STEP: Open WhatsApp on Android and verify phone number
-Press Enter when ready...
-
-[INFO] Step 4/6: Creating Android backup...
-⚠️  MANUAL STEP: Confirm backup on Android screen (no password)
-[OK] Android backup created: tmp/whatsapp.ab (125.4 MB)
-
-[INFO] Step 5/6: Migrating database...
+[INFO] Step 3/4: Migrating database...
+[OK] Schema detected: Modern (WhatsApp 2.20.x+)
 [OK] Messages migrated: 15,234
 [OK] Contacts migrated: 127
 [OK] Groups migrated: 23
+[OK] Timestamps converted (Unix → Apple epoch)
 
-[INFO] Step 6/6: Updating iOS backup...
+[INFO] Step 4/4: Updating iOS backup...
+[OK] Original backup saved: backups/ChatStorage_original_20251128_143022.sqlite
+[OK] Migrated database injected successfully
 ✅ MIGRATION COMPLETED!
 
 Summary:
 - Messages migrated: 15,234
 - Contacts migrated: 127
 - Groups migrated: 23
-- Backups created: 3
+- Backups created: 1
 
 NEXT STEPS:
 1. Open iTunes/Finder
@@ -273,31 +253,20 @@ python main.py --help
 
 ### Data Loss Risks
 
-1. **Android:**
-   - Downgrading WhatsApp may cause compatibility issues
-   - Backup current version before proceeding
-
-2. **iOS:**
+1. **iOS:**
    - Modified backup replaces ALL WhatsApp data
    - Original iOS messages will be LOST
    - Create manual iTunes/Finder backup first
 
-3. **Media:**
+2. **Media:**
    - Photos, videos, audio NOT migrated
    - Export manually to Google Photos/iCloud before migration
 
 ### Security Considerations
 
 - **Unencrypted backups:** Sensitive data readable by anyone with file access
-- **Legacy WhatsApp:** Version 2.11.x has known security vulnerabilities (upgrade immediately after migration)
 - **Backup storage:** Keep backups encrypted (BitLocker, FileVault)
 - **Cleanup:** Delete backups and temp files after successful migration
-
-### Legal Considerations
-
-- **APK download:** Only from legal sources (APKMirror, APKPure)
-- **Personal use only:** Do not distribute APK files
-- **WhatsApp ToS:** May violate Terms of Service (use at your own risk)
 
 ---
 
