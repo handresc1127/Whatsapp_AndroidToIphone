@@ -1,14 +1,20 @@
-import os
-import tarfile
-import shutil
-import sqlite3
-import subprocess
+"""
+WhatsApp Android to iOS Migration Tool - Launcher
 
-req_file_list = {
-    'bin': ['adb.exe', 'AdbWinApi.dll','AdbWinUsbApi.dll'],
-    'apk': ['LegacyWhatsApp.apk'],
-    '.': ['migrate.py']
-}
+This is a compatibility launcher that redirects to the new modular structure.
+The actual implementation is in src/main.py
+"""
+
+import os
+import sys
+
+# Add src to path and run the actual main script
+sys.path.insert(0, os.path.dirname(__file__))
+
+if __name__ == '__main__':
+    # Import and run the real main from src/
+    from src import main as src_main
+    sys.exit(src_main.main() or 0)
 iphone_backup_root_locs = [
     os.getenv('APPDATA')+'\\Apple Computer\\MobileSync\\Backup',
     os.getenv('USERPROFILE')+'\\Apple\\MobileSync\\Backup',
