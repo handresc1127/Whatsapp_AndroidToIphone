@@ -126,17 +126,21 @@ def android_backup_process(whatsapp_type, logger):
         # Confirmar proceso
         print("\n" + "="*80)
         print("WARNING: This process will:")
-        print("  1. Uninstall current WhatsApp (data will be preserved)")
+        print("  1. Uninstall current WhatsApp")
         print("  2. Install legacy WhatsApp version")
         print("  3. Create unencrypted backup")
+        print()
+        print("NOTE: Your WhatsApp data in /sdcard/WhatsApp/ will be preserved.")
+        print("      The app will be downgraded but your chats remain safe.")
         print("="*80)
         
         if not confirm_action("\nDo you want to continue?"):
             logger.info("User cancelled Android backup process")
             return None
         
-        # Desinstalar WhatsApp actual
-        if not android_mgr.uninstall_whatsapp(keep_data=True):
+        # Desinstalar WhatsApp completamente (sin -k para permitir downgrade)
+        # Los datos en /sdcard/WhatsApp/ se preservan automáticamente
+        if not android_mgr.uninstall_whatsapp(keep_data=False):
             logger.error("Failed to uninstall WhatsApp")
             return None
         

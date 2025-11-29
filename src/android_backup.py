@@ -154,9 +154,21 @@ class AndroidBackupManager:
             if 'Success' in result.stdout:
                 self.logger.info("Legacy APK installed successfully")
                 print("[OK] Legacy WhatsApp installed!")
+                print("\nIMPORTANT: Please open WhatsApp and verify your phone number.")
+                print("           This is required before creating the backup.")
+                input("Press Enter once WhatsApp is verified and ready...")
                 return True
             else:
                 self.logger.error(f"Installation failed: {result.stdout}")
+                print(f"\n[ERROR] Failed to install legacy APK")
+                print(f"Reason: {result.stdout}")
+                
+                # Check for common errors
+                if 'INSTALL_FAILED_VERSION_DOWNGRADE' in result.stdout:
+                    print("\nThe app data is preventing downgrade.")
+                    print("Please manually uninstall WhatsApp completely from Android settings,")
+                    print("then run this script again.")
+                
                 return False
                 
         except Exception as e:
