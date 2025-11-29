@@ -7,21 +7,23 @@ Migrate your WhatsApp chat history from Android to iOS devices with complete mes
 ## 🚀 Quick Start
 
 ```powershell
-# 1. Setup dependencies (see docs/SETUP.md)
-# - Install Python 3.8+
-# - Download ADB binaries to bin/
-# - Download legacy WhatsApp APK to apk/
+# 1. Run setup script FIRST (downloads dependencies)
+python setup.py
 
-# 2. Connect devices
+# 2. Follow setup instructions to download Legacy WhatsApp APK
+
+# 3. Connect devices
 # - Connect Android via USB (USB debugging enabled)
 # - Create iOS backup via iTunes/Finder (unencrypted)
 
-# 3. Run migration
+# 4. Run migration
 python main.py
 
-# 4. Follow interactive prompts
-# 5. Restore modified iOS backup
+# 5. Follow interactive prompts
+# 6. Restore modified iOS backup
 ```
+
+**📖 Detailed Setup:** See [SETUP_FIRST.md](SETUP_FIRST.md) for complete setup instructions.
 
 **⚠️ Warning:** This tool modifies iOS backups and downgrades Android WhatsApp. **Use at your own risk.** Always create manual backups first.
 
