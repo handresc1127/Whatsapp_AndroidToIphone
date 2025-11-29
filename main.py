@@ -21,15 +21,18 @@ if not os.path.exists(adb_command):
         result = os.system('adb version >nul 2>&1')
         if result == 0:
             adb_command = 'adb'
-            print('Using system adb command')
+            print('[OK] Using system adb command')
         else:
-            print('Missing: bin\\adb.exe and adb is not in system PATH, terminating!')
-            exit(1)
+            raise Exception('ADB not in PATH')
     except:
-        print('Missing: bin\\adb.exe and adb is not in system PATH, terminating!')
+        print('\n[ERROR] ADB not found!')
+        print('Please either:')
+        print('  1. Place adb.exe in bin/ directory (see bin/README.md), or')
+        print('  2. Install Android Platform Tools and add to PATH')
+        print('\nDownload: https://developer.android.com/tools/releases/platform-tools')
         exit(1)
 else:
-    print('Using bin\\adb.exe')
+    print('[OK] Using bin\\adb.exe')
 
 for dirname in req_file_list:
     for filename in req_file_list[dirname]:

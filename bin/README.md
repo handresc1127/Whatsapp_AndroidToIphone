@@ -30,6 +30,23 @@ Si ya tienes Android Studio instalado:
 1. Los archivos están en: `C:\Users\{TuUsuario}\AppData\Local\Android\Sdk\platform-tools\`
 2. Copia `adb.exe`, `AdbWinApi.dll`, `AdbWinUsbApi.dll` a este directorio
 
+### Opción 3: Usar ADB del Sistema (PATH)
+
+**NUEVO**: El script ahora detecta automáticamente si ADB está instalado en tu sistema.
+
+Si no quieres copiar archivos a `bin/`, puedes:
+
+1. Descargar **SDK Platform-Tools** (Opción 1)
+2. Agregar la carpeta `platform-tools` al PATH de Windows:
+   - Presiona `Win + X` → Sistema → Configuración avanzada
+   - Variables de entorno → Variable del sistema `Path` → Editar
+   - Nuevo → `C:\ruta\a\platform-tools`
+   - Aceptar en todas las ventanas
+3. Reinicia PowerShell/CMD
+4. Verifica: `adb version`
+
+El script usará automáticamente el ADB del sistema si no encuentra `bin\adb.exe`.
+
 ## Verificación
 
 Ejecuta en PowerShell:
