@@ -4,7 +4,11 @@ import shutil
 import sqlite3
 import subprocess
 
-req_file_list = {'bin': ['adb.exe', 'AdbWinApi.dll','AdbWinUsbApi.dll','LegacyWhatsApp.apk'],'.':['migrate.py']}
+req_file_list = {
+    'bin': ['adb.exe', 'AdbWinApi.dll','AdbWinUsbApi.dll'],
+    'apk': ['LegacyWhatsApp.apk'],
+    '.': ['migrate.py']
+}
 iphone_backup_root_locs = [
     os.getenv('APPDATA')+'\\Apple Computer\\MobileSync\\Backup',
     os.getenv('USERPROFILE')+'\\Apple\\MobileSync\\Backup',
@@ -55,6 +59,20 @@ for dirname in req_file_list:
         # Omitir DLLs si estamos usando ADB del sistema
         if filename in ['AdbWinApi.dll', 'AdbWinUsbApi.dll'] and adb_command == 'adb':
             continue
+        # Validación especial para APKs - al menos uno debe existir
+        if filename == 'LegacyWhatsApp.apk':
+            # Verificar si existe el APK estándar o business
+            standard_exists = os.path.exists('apk\\LegacyWhatsApp.apk')
+            business_exists = os.path.exists('apk\\LegacyWhatsAppBusiness.apk')
+            
+            if not standard_exists and not business_exists:
+                print('Missing: At least one WhatsApp APK is required!')
+                print('  - apk\\LegacyWhatsApp.apk (for WhatsApp Standard), OR')
+                print('  - apk\\LegacyWhatsAppBusiness.apk (for WhatsApp Business)')
+                print('\nRun: python setup.py for instructions.')
+                exit(1)
+            continue
+        
         path = os.path.join(dirname,filename)
         if not os.path.exists(path):
             print('Missing: {}, terminating!'.format(path))
@@ -73,7 +91,7 @@ if not use_android_backup:
     wa_choice = input('Selecciona 1 o 2: ').strip()
     if wa_choice == '2':
         wa_package = 'com.whatsapp.w4b'
-        wa_apk = 'LegacyWhatsAppBusiness.apk' # Debes colocar el APK de WhatsApp Business legacy en bin/
+        wa_apk = 'LegacyWhatsAppBusiness.apk'
         wa_db_path = 'tmp\\apps\\com.whatsapp.w4b\\db\\msgstore.db'
     else:
         wa_package = 'com.whatsapp'
@@ -103,7 +121,7 @@ if not use_android_backup:
     os.system(f'{adb_command} shell pm uninstall -k {wa_package}')
 
     print(f'Instalando APK legacy: {wa_apk}')
-    os.system(f'{adb_command} install -r -d bin\\{wa_apk}')
+    os.system(f'{adb_command} install -r -d apk\\{wa_apk}')
     print('¡Instalación completa!')
 
     print('Respaldando datos.')
