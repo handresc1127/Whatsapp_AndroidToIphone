@@ -14,6 +14,39 @@ from pathlib import Path
 from typing import Optional
 
 
+def get_adb_command() -> str:
+    """
+    Detecta el comando ADB disponible en el sistema.
+    
+    Returns:
+        Ruta al comando ADB ('bin/adb.exe' o 'adb')
+    
+    Raises:
+        RuntimeError: Si no se encuentra ningún ADB
+    """
+    # Intentar bin/adb.exe primero
+    if os.path.exists('bin/adb.exe'):
+        return 'bin/adb.exe'
+    
+    # Intentar adb del sistema
+    try:
+        result = subprocess.run(
+            ['adb', 'version'],
+            capture_output=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return 'adb'
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    
+    raise RuntimeError(
+        "ADB not found. Please either:\n"
+        "  1. Place adb.exe in bin/ directory, or\n"
+        "  2. Install Android Platform Tools and add to PATH"
+    )
+
+
 def setup_logging(log_file: str = 'logs/migration.log', level: int = logging.INFO) -> logging.Logger:
     """
     Configura logging a archivo y consola.

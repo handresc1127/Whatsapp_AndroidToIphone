@@ -33,15 +33,25 @@ def validate_dependencies(logger):
     """
     print_step(1, "Validating Dependencies")
     
-    required_files = {
-        'bin/adb.exe': 'Android Debug Bridge executable',
-        'bin/AdbWinApi.dll': 'ADB Windows API library',
-        'bin/AdbWinUsbApi.dll': 'ADB Windows USB library',
-    }
+    # Detectar ADB disponible
+    from src.utils import get_adb_command
+    try:
+        adb_cmd = get_adb_command()
+        print(f"\n[OK] ADB found: {adb_cmd}")
+        logger.info(f"Using ADB: {adb_cmd}")
+    except RuntimeError as e:
+        logger.error(str(e))
+        print(f"\n[ERROR] {e}")
+        sys.exit(1)
     
-    # Validar archivos bin/
-    for filepath, description in required_files.items():
-        validate_file_exists(filepath, description, logger)
+    # Validar DLLs solo si estamos usando bin/adb.exe
+    if adb_cmd == 'bin/adb.exe':
+        required_files = {
+            'bin/AdbWinApi.dll': 'ADB Windows API library',
+            'bin/AdbWinUsbApi.dll': 'ADB Windows USB library',
+        }
+        for filepath, description in required_files.items():
+            validate_file_exists(filepath, description, logger)
     
     # Validar directorios
     validate_directory_exists('apk', 'APK directory for legacy WhatsApp files', logger)

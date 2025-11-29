@@ -9,7 +9,7 @@ import os
 import tarfile
 from typing import Optional
 
-from utils import run_adb_command, ensure_directory, clean_directory, print_step
+from utils import run_adb_command, ensure_directory, clean_directory, print_step, get_adb_command
 
 
 class AndroidBackupManager:
@@ -42,8 +42,12 @@ class AndroidBackupManager:
         else:
             self.config = self.WHATSAPP_STANDARD
         
+        # Detectar comando ADB disponible
+        self.adb_cmd = get_adb_command()
+        
         self.logger.info(f"Initialized for {whatsapp_type} WhatsApp")
         self.logger.info(f"Package: {self.config['package']}")
+        self.logger.info(f"Using ADB: {self.adb_cmd}")
     
     def start_adb_server(self) -> bool:
         """
@@ -54,10 +58,10 @@ class AndroidBackupManager:
         """
         try:
             self.logger.info("Stopping ADB server...")
-            run_adb_command(['bin/adb.exe', 'kill-server'], check=False)
+            run_adb_command([self.adb_cmd, 'kill-server'], check=False)
             
             self.logger.info("Starting ADB server...")
-            run_adb_command(['bin/adb.exe', 'start-server'])
+            run_adb_command([self.adb_cmd, 'start-server'])
             
             return True
         except Exception as e:
@@ -79,10 +83,10 @@ class AndroidBackupManager:
             print("\nPlease connect your Android device via USB...")
             print("Make sure USB debugging is enabled.")
             
-            run_adb_command(['bin/adb.exe', 'wait-for-device'], timeout=timeout)
+            run_adb_command([self.adb_cmd, 'wait-for-device'], timeout=timeout)
             
             # Verificar dispositivo
-            result = run_adb_command(['bin/adb.exe', 'devices'])
+            result = run_adb_command([self.adb_cmd, 'devices'])
             self.logger.info(f"ADB devices output:\n{result.stdout}")
             
             print("\n[OK] Android device connected!")
@@ -105,7 +109,7 @@ class AndroidBackupManager:
         try:
             self.logger.info(f"Uninstalling {self.config['package']}...")
             
-            cmd = ['bin/adb.exe', 'shell', 'pm', 'uninstall']
+            cmd = [self.adb_cmd, 'shell', 'pm', 'uninstall']
             if keep_data:
                 cmd.append('-k')
             cmd.append(self.config['package'])
@@ -144,7 +148,7 @@ class AndroidBackupManager:
             
             # -r: replace existing, -d: allow downgrade
             result = run_adb_command([
-                'bin/adb.exe', 'install', '-r', '-d', apk_path
+                self.adb_cmd, 'install', '-r', '-d', apk_path
             ], timeout=120)
             
             if 'Success' in result.stdout:
@@ -184,7 +188,7 @@ class AndroidBackupManager:
             print("\nStarting backup...")
             
             result = run_adb_command([
-                'bin/adb.exe', 'backup', '-f', output_file, self.config['package']
+                self.adb_cmd, 'backup', '-f', output_file, self.config['package']
             ], timeout=600)  # 10 minutos de timeout
             
             # Validar que el archivo se creó
@@ -296,7 +300,7 @@ class AndroidBackupManager:
                 clean_directory('tmp', self.logger)
             
             # Detener servidor ADB
-            run_adb_command(['bin/adb.exe', 'kill-server'], check=False)
+            run_adb_command([self.adb_cmd, 'kill-server'], check=False)
             self.logger.info("ADB server stopped")
             
         except Exception as e:

@@ -12,8 +12,30 @@ iphone_backup_root_locs = [
 
 print('\nWhatsApp android to ios transferrer\n')
 
+# Detectar ADB disponible
+adb_command = 'bin\\adb.exe'
+if not os.path.exists(adb_command):
+    print('bin\\adb.exe not found, trying system adb command...')
+    # Verificar si adb está en PATH
+    try:
+        result = os.system('adb version >nul 2>&1')
+        if result == 0:
+            adb_command = 'adb'
+            print('Using system adb command')
+        else:
+            print('Missing: bin\\adb.exe and adb is not in system PATH, terminating!')
+            exit(1)
+    except:
+        print('Missing: bin\\adb.exe and adb is not in system PATH, terminating!')
+        exit(1)
+else:
+    print('Using bin\\adb.exe')
+
 for dirname in req_file_list:
     for filename in req_file_list[dirname]:
+        # Omitir validación de adb.exe si ya lo validamos arriba
+        if filename == 'adb.exe':
+            continue
         path = os.path.join(dirname,filename)
         if not os.path.exists(path):
             print('Missing: {}, terminating!'.format(path))
@@ -38,9 +60,9 @@ if not use_android_backup:
         wa_package = 'com.whatsapp'
         wa_apk = 'LegacyWhatsApp.apk'
         wa_db_path = 'tmp\\apps\\com.whatsapp\\db\\msgstore.db'
-    os.system('bin\\adb.exe kill-server')
-    os.system('bin\\adb.exe start-server')
-    os.system('bin\\adb.exe wait-for-device')
+    os.system(f'{adb_command} kill-server')
+    os.system(f'{adb_command} start-server')
+    os.system(f'{adb_command} wait-for-device')
 
     print('\nAndroid device connected!\n')
 
@@ -59,15 +81,15 @@ if not use_android_backup:
         os.mkdir('tmp')
 
     print('Desinstalando APK actual.')
-    os.system(f'bin\\adb.exe shell pm uninstall -k {wa_package}')
+    os.system(f'{adb_command} shell pm uninstall -k {wa_package}')
 
     print(f'Instalando APK legacy: {wa_apk}')
-    os.system(f'bin\\adb.exe install -r -d bin\\{wa_apk}')
+    os.system(f'{adb_command} install -r -d bin\\{wa_apk}')
     print('¡Instalación completa!')
 
     print('Respaldando datos.')
     print('\nNota: No pongas ninguna contraseña.\n')
-    os.system(f'bin\\adb.exe backup -f tmp\\whatsapp.ab {wa_package}')
+    os.system(f'{adb_command} backup -f tmp\\whatsapp.ab {wa_package}')
 
     print('\nPlease confirm the backup operation is complete and tmp/whatsapp.ab is present.')
     input('Press Enter to continue after backup is complete...')
@@ -108,7 +130,7 @@ if not use_android_backup:
     print('Deleting tmp directory.')
     shutil.rmtree('tmp')
     print('Stopping adb.')
-    os.system('bin\\adb.exe kill-server')
+    os.system(f'{adb_command} kill-server')
 
 
     print('\nYou can now safely remove your android device.')
