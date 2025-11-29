@@ -104,9 +104,22 @@ def download_legacy_apk():
             return True
         else:
             print(f"  ✗ APK not found at: {apk_path}")
-            print(f"    Please ensure the file is named 'LegacyWhatsApp.apk'")
+            print(f"\n  Common issues:")
+            print(f"    - Wrong filename (must be exactly 'LegacyWhatsApp.apk')")
+            print(f"    - Wrong location (must be in 'apk/' folder)")
+            print(f"    - File still downloading")
+            print(f"\n  Current apk/ directory contents:")
+            if apk_dir.exists():
+                files = list(apk_dir.iterdir())
+                if files:
+                    for f in files:
+                        print(f"    - {f.name}")
+                else:
+                    print(f"    (empty)")
+            print(f"\n  Please move/rename the APK to: apk\\LegacyWhatsApp.apk")
             return False
     
+    print("\n  Please download the APK first, then run setup again.")
     return False
 
 
@@ -164,6 +177,19 @@ def print_summary(adb_ok, apk_ok, migrate_ok):
         return True
     else:
         print("✗ SETUP INCOMPLETE - Please fix the issues above")
+        
+        if not apk_ok:
+            print("\nTo fix APK issue:")
+            print("  1. Download from: https://www.apkmirror.com/apk/whatsapp-inc/whatsapp/")
+            print("  2. Version: 2.11.431")
+            print("  3. Rename to: LegacyWhatsApp.apk")
+            print("  4. Move to: apk\\")
+            print("  5. Run setup again: python setup.py")
+        
+        if not adb_ok:
+            print("\nTo fix ADB issue:")
+            print("  See: bin\\README.md")
+        
         print("\n" + "="*80 + "\n")
         return False
 
