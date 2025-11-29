@@ -68,21 +68,19 @@ The migration involves **5 main steps**:
 ```
 Step 1: Validate Dependencies
   ↓
-Step 2: Direct Database Extraction (Android)
+Step 2: Select WhatsApp Type
   ↓
-Step 3: Validate Database
+Step 3: Direct Database Extraction (Android)
   ↓
-Step 4: Extract and Migrate Database
+Step 4: Migrate Database (Android → iOS)
   ↓
-Step 5: Inject into iOS Backup
-  ↓
-Step 6: Restore iOS Backup
+Step 5: Update iOS Backup
 ```
 
 **Estimated Time:** 10-20 minutes  
 **Requires User Interaction:** Yes (confirmations at each step)
 
-**Note:** If direct extraction fails, a legacy backup method is available as fallback.
+**Note:** If direct extraction fails, a legacy backup method is available as fallback (requires legacy APK download).
 
 ---
 
@@ -106,196 +104,176 @@ The script will guide you through each step with prompts.
 **What happens:**
 - Checks Python version (≥3.8)
 - Verifies ADB executable exists
-- Confirms legacy APK is present
-- Locates iTunes backup directory
 - Tests Android device connection
+- Locates iTunes backup directory
 - Verifies iOS backup availability
+- *(Optional)* Checks if legacy APK is present (only for fallback)
 
 **Expected Output:**
 ```
-[INFO] Step 1/6: Validating dependencies...
+[INFO] Step 1/5: Validating dependencies...
 ✅ Python 3.11.5 detected
 ✅ ADB found: bin\adb.exe (version 35.0.1)
-✅ Legacy WhatsApp APK found: apk\WhatsApp_2.11.431.apk
 ✅ Android device connected: ABC123XYZ (model: SM-G991B)
 ✅ iOS backup directory: C:\Users\...\MobileSync\Backup\
 ✅ Found iOS backup: a1b2c3d4e5f6... (modified: 2025-11-27 14:30)
+
+[INFO] Legacy APK directory not found (optional)
+       Only direct extraction method will be available
+       This is fine for most users
 ```
 
 **If Errors Occur:**
 - Missing ADB: See [SETUP.md - ADB Installation](SETUP.md#adb-installation)
 - Device not detected: Enable USB debugging, try different cable
 - No iOS backup: Create backup via iTunes/Finder
-- Missing APK: Download legacy WhatsApp (see [SETUP.md](SETUP.md#legacy-whatsapp-apk))
 
 **User Action:** Review output, confirm to proceed
 
 ---
 
-### Step 2: Backup Current Android WhatsApp
+### Step 2: Select WhatsApp Type
 
 **What happens:**
-- Creates backup of current WhatsApp APK
-- Creates backup of `/sdcard/WhatsApp/` folder
-- Stores backups in `backups/` folder with timestamp
+- Script asks which WhatsApp to migrate
+- Options: Standard or Business
 
 **Expected Output:**
 ```
-[INFO] Step 2/6: Backing up current WhatsApp...
-[INFO] Creating backup of WhatsApp APK...
-[OK] APK backup saved: backups/WhatsApp_current_20251128_143022.apk
-[INFO] Creating backup of WhatsApp data folder...
-[OK] Data backup saved: backups/WhatsApp_data_20251128_143022.tar
-[OK] Backup completed successfully
+[INFO] Step 2/5: Select WhatsApp Type
+
+Which WhatsApp do you want to migrate?
+  1. WhatsApp (Standard)
+  2. WhatsApp Business
+
+Select option (1 or 2): 1
 ```
 
-**Backup Locations:**
-- APK: `backups/WhatsApp_current_YYYYMMDD_HHMMSS.apk`
-- Data: `backups/WhatsApp_data_YYYYMMDD_HHMMSS.tar`
-
-**User Action:** Confirm backup success before proceeding
-
-**⚠️ IMPORTANT:** Keep these backups until you've verified iOS migration success. You'll need them to restore Android if something goes wrong.
+**User Action:** Enter `1` for Standard or `2` for Business
 
 ---
 
-### Step 3: Downgrade to Legacy WhatsApp
+### Step 3: Direct Database Extraction
 
 **What happens:**
-- Uninstalls current WhatsApp (with `-k` flag to keep data)
-- Installs legacy WhatsApp APK (version 2.11.431-2.11.498)
-- Prompts you to open WhatsApp and verify phone number
+- Extracts msgstore.db directly from `/sdcard/Android/media/com.whatsapp/`
+- No downgrade needed
+- No backup file creation
+- Works with current WhatsApp version
 
 **Expected Output:**
 ```
-[INFO] Step 3/6: Downgrading WhatsApp to legacy version...
-[INFO] Uninstalling current WhatsApp (keeping data)...
-[OK] Current WhatsApp uninstalled
-[INFO] Installing legacy WhatsApp: apk\WhatsApp_2.11.431.apk
-[OK] Legacy WhatsApp installed successfully
+[INFO] Step 3/5: Android Database Extraction
 
-⚠️  MANUAL STEP REQUIRED:
-1. Unlock your Android device
-2. Open WhatsApp (green icon)
-3. Verify your phone number
-4. Skip backup restoration (if prompted)
-5. Wait for chats to load completely
+This will extract WhatsApp database directly from your device.
 
-Press Enter when WhatsApp is ready...
+METHOD:
+  - Direct extraction from /sdcard/ (no backup needed)
+  - Works with current WhatsApp version (no downgrade)
+  - Requires storage permissions granted to WhatsApp
+  - Fast extraction (usually < 1 minute)
+
+REQUIREMENTS:
+  - WhatsApp installed with active chats
+  - Storage permissions enabled for WhatsApp
+  - USB debugging enabled
+
+Do you want to continue? (yes/no): yes
+
+[INFO] Attempting direct database extraction...
+[INFO] Trying: /sdcard/Android/media/com.whatsapp/WhatsApp/Databases/msgstore.db
+[OK] Database extracted successfully (125.4 MB)
+
+[OK] Database validated successfully
+     Schema: modern
+     Messages: 15,234
+     Size: 125.40 MB
+
+You can now safely disconnect your Android device.
 ```
 
 **User Actions:**
-
-1. **Unlock Android device**
-2. **Open WhatsApp** from app drawer
-3. **Verify phone number** (will receive SMS/call)
-4. **IMPORTANT:** If asked to restore from Google Drive → **SKIP** or **Cancel**
-5. Wait for chats to appear (may take 1-2 minutes)
-6. Return to computer and **press Enter**
+1. Ensure WhatsApp has **storage permissions** enabled:
+   - Settings → Apps → WhatsApp → Permissions → Storage → Allow
+2. Confirm to proceed
+3. Wait for extraction (usually 10-30 seconds)
 
 **Troubleshooting:**
-- **"App not installed" error:** Uninstall manually first: Settings → Apps → WhatsApp → Uninstall
-- **Phone verification fails:** Check SIM card, mobile data/WiFi, try SMS instead of call
-- **Chats don't load:** Wait 5 minutes, restart WhatsApp, check `/sdcard/WhatsApp/` exists
+- **"Could not access database file":**
+  - Grant storage permissions to WhatsApp
+  - Open WhatsApp to ensure it has created database
+  - Try alternative: Settings → Storage → Manage Space → "Export database"
+
+- **"Database validation failed":**
+  - Database may be encrypted (rare on modern Android)
+  - Try legacy backup method (will prompt automatically)
+
+**If Direct Extraction Fails:**
+
+Script will automatically offer legacy backup method:
+
+```
+[WARNING] Direct extraction failed.
+
+This can happen if:
+  - WhatsApp doesn't have storage permissions
+  - Database file is in non-standard location
+  - WhatsApp is not installed or has no data
+
+Alternative methods:
+  1. Legacy APK backup (requires downgrade)
+  2. Manual file transfer
+  3. Cancel migration
+
+Try legacy APK backup method? (yes/no): 
+```
+
+**Legacy Method Requirements:**
+- Legacy APK must be in `apk/` folder
+- Requires phone number re-verification
+- Takes 15-30 minutes additional time
+- See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for details
 
 ---
 
-### Step 4: Create Android Backup (.ab file)
+### Step 4: Migrate Database
 
 **What happens:**
-- Uses ADB to create backup of WhatsApp data
-- Creates `.ab` (Android Backup) file
-- **IMPORTANT:** Requires manual confirmation on Android device
-
-**Expected Output:**
-```
-[INFO] Step 4/6: Creating Android backup...
-[INFO] Executing: adb backup -f tmp/whatsapp.ab -noapk com.whatsapp
-
-⚠️  LOOK AT YOUR ANDROID DEVICE NOW!
-A prompt will appear asking to confirm backup.
-
-1. Unlock your Android device
-2. You should see "Backup my data" screen
-3. DO NOT set a password (leave blank)
-4. Tap "BACK UP MY DATA" button
-5. Wait for confirmation...
-
-This may take 2-5 minutes depending on chat history size.
-```
-
-**User Actions:**
-
-1. **Unlock Android device immediately**
-2. **Look for "Backup my data" prompt** (appears within 10 seconds)
-3. **Password field:** Leave **EMPTY** (critical!)
-4. **Tap "BACK UP MY DATA"** button
-5. **Wait patiently** (progress bar may not move smoothly)
-
-**Expected Wait Time:**
-- Small chats (<1000 messages): 1-2 minutes
-- Medium chats (1000-10000 messages): 2-5 minutes
-- Large chats (>10000 messages): 5-15 minutes
-
-**Troubleshooting:**
-- **Prompt doesn't appear:** Check Android screen is unlocked, try `adb backup` command again
-- **"Backup failed":** Ensure legacy WhatsApp is running, phone is unlocked
-- **"Password required":** You set a password - must restart and leave blank
-- **Stuck at 0%:** Be patient, progress bar often jumps to 100% near end
-
-**When Complete:**
-```
-[OK] Android backup created: tmp/whatsapp.ab (125.4 MB)
-[INFO] Extracting backup archive...
-[OK] Backup extracted to: tmp/apps/com.whatsapp/
-```
-
----
-
-### Step 5: Extract and Migrate Database
-
-**What happens:**
-- Extracts msgstore.db from Android backup
-- Validates database integrity
+- Extracts iOS ChatStorage.sqlite from backup
+- Detects Android database schema (modern vs legacy)
 - Converts Android schema to iOS schema
 - Migrates messages, contacts, groups
 - Converts timestamps (Unix 1970 → Apple 2001 epoch)
 
 **Expected Output:**
 ```
-[INFO] Step 5/6: Migrating database...
-[INFO] Extracting msgstore.db from backup...
-[OK] Android database: tmp/apps/com.whatsapp/db/msgstore.db
+[INFO] Step 4/5: Data Migration
 
-[INFO] Locating iOS ChatStorage.sqlite...
-[OK] iOS database: C:\Users\...\MobileSync\Backup\a1b2c3d4e5f6...\7c7fba66680ef796b916b067077cc246adacf01d
+Please enter your phone number with country code
+Example: 573001234567 (for Colombia)
+Phone number: 573001234567
 
-[INFO] Starting migration...
-[INFO] Analyzing Android database schema...
-[OK] Found 4 tables: messages, contacts, groups, media
-[OK] Total messages: 15,234
-[OK] Total contacts: 127
-[OK] Total groups: 23
+[INFO] Starting database migration...
+[INFO] This may take several minutes depending on chat history size...
 
-[INFO] Creating iOS database schema...
-[OK] Core Data model created
+[INFO] Database schema: modern
+[INFO] Analyzing database schemas...
+[OK] Android DB: 15,234 messages
+[OK] iOS DB: 0 messages (fresh)
 
-[INFO] Migrating messages...
-Progress: [████████████████████████████████] 100% (15234/15234)
-[OK] Messages migrated: 15,234
+[INFO] Starting migration with modern schema...
+Progress: 15234/15234 messages migrated
 
-[INFO] Migrating contacts...
-[OK] Contacts migrated: 127
-
-[INFO] Migrating groups...
-[OK] Groups migrated: 23
-
-[INFO] Converting timestamps...
-[OK] Timestamps converted (Unix epoch → Apple epoch)
-
-[INFO] Finalizing migration...
-[OK] Database integrity check passed
-[OK] Migration completed successfully
+================================================================================
+MIGRATION STATISTICS
+================================================================================
+Android messages:      15,234
+iOS messages (before): 0
+Messages migrated:     15,234
+Contacts migrated:     0
+Groups migrated:       0
+iOS messages (after):  15,234
+================================================================================
 ```
 
 **What Gets Migrated:**
@@ -303,30 +281,32 @@ Progress: [███████████████████████
 ✅ **Included:**
 - Message text (sent/received)
 - Timestamps (accurate to the second)
-- Contact names and phone numbers
-- Group names and participants
-- Message read status
-- Message delivery status
-- Quoted/reply messages (best effort)
+- Contact identifiers (JIDs)
+- Message status (delivered, read)
+- From/To information
 
 ❌ **Not Included:**
 - Media files (photos, videos, voice messages, documents)
 - Stickers and GIFs
 - Group admin permissions
+- Contact names (synced from iOS contacts separately)
 - Muted chats settings
 - Wallpapers and chat colors
 - Archived chats status
 
-**User Action:** Monitor progress, confirm completion
+**User Action:** 
+1. Enter phone number with country code
+2. Wait for migration (1-5 minutes depending on message count)
+3. Review statistics
 
 **Troubleshooting:**
-- **"msgstore.db not found":** Android backup incomplete, restart from Step 4
-- **"Database corrupted":** Try creating new Android backup
-- **"Schema mismatch":** iOS WhatsApp version too new, update script or use older iOS backup
+- **"Schema not implemented":** Database too old, try legacy method
+- **"Migration failed":** Check logs in `logs/` folder
+- **Message count mismatch:** Some system messages may be filtered
 
 ---
 
-### Step 6: Inject into iOS Backup
+### Step 5: Update iOS Backup
 
 **What happens:**
 - Backs up original iOS ChatStorage.sqlite
@@ -336,55 +316,46 @@ Progress: [███████████████████████
 
 **Expected Output:**
 ```
-[INFO] Step 6/6: Updating iOS backup...
+[INFO] Step 5/5: Update iTunes Backup
 
-⚠️  CRITICAL: This will MODIFY your iOS backup
-Original ChatStorage.sqlite will be backed up to:
-backups/ChatStorage_original_20251128_143530.sqlite
+This step will modify your iTunes backup with the migrated data.
+A safety backup will be created before overwriting.
 
-Do you want to proceed? (yes/no): yes
+Do you want to update the iTunes backup? (yes/no): yes
 
 [INFO] Backing up original iOS database...
-[OK] Backup saved: backups/ChatStorage_original_20251128_143530.sqlite
+[OK] Backup saved: backups/ChatStorage_original_20251129_143530.sqlite
 
-[INFO] Replacing iOS database...
-[OK] Migrated database copied to iOS backup
+[INFO] Updating iOS backup...
+[OK] Database replaced successfully
+[OK] Manifest.db updated
+[OK] Backup integrity verified
 
-[INFO] Updating Manifest.db...
-[OK] File hash updated in Manifest
-[OK] Backup modified successfully
+================================================================================
+MIGRATION COMPLETE!
+================================================================================
 
-✅ MIGRATION COMPLETED!
+Final Steps:
+  1. Connect your iPhone to iTunes/Finder
+  2. Restore from the updated backup
+  3. Open WhatsApp on your iPhone
+  4. Verify that all chats from Android are present
 
-Summary:
-- Messages migrated: 15,234
-- Contacts migrated: 127
-- Groups migrated: 23
-- Backups created: 3
-- iOS backup ready for restore
-
-NEXT STEPS:
-1. Disconnect Android device
-2. Connect iOS device to iTunes/Finder
-3. Select "Restore Backup"
-4. Choose the modified backup (timestamp: 2025-11-27 14:30)
-5. Wait for restore to complete (10-30 minutes)
-6. Open WhatsApp on iOS
-7. Verify your phone number
-8. Check that chats have been restored
-
-⚠️  DO NOT create new iOS backup until you've verified migration!
+NOTE: If you experience issues:
+  - Backup WhatsApp to iCloud
+  - Reinstall WhatsApp
+  - Restore from iCloud
+================================================================================
 ```
 
 **User Action:**
-1. **Read summary carefully**
-2. **Verify message counts** match expectations
-3. **Note backup locations** for potential rollback
-4. **Confirm understanding** of next steps
+1. Confirm backup update
+2. Review completion message
+3. Proceed to manual iOS restore
 
 ---
 
-### Step 7: Restore iOS Backup (Manual)
+### Step 6: Restore iOS Backup (Manual)
 
 **This step is MANUAL - done via iTunes/Finder:**
 
@@ -487,16 +458,34 @@ python main.py --help
 
 ## Understanding the Process
 
-### Why Downgrade WhatsApp?
+### Direct Extraction Method
 
-Modern WhatsApp versions (2.12.x+) use **encrypted backups** by default. The encryption key is stored in Google Drive and cannot be extracted.
+**How It Works:**
 
-Legacy versions (2.11.431-2.11.498) create **unencrypted local backups** that can be read and modified.
+Modern Android (8.0+) with Scoped Storage allows direct file access to WhatsApp databases:
 
-**Timeline:**
-- **2.11.431 (2014):** Last version with easy unencrypted backups
-- **2.12.x (2015):** Introduced encrypted backups
-- **Current:** Encryption mandatory, no workaround
+1. **Database Location:**
+   - Primary: `/sdcard/Android/media/com.whatsapp/WhatsApp/Databases/msgstore.db`
+   - Fallback: `/sdcard/WhatsApp/Databases/msgstore.db`
+
+2. **Permissions Required:**
+   - WhatsApp must have "Storage" permission enabled
+   - ADB file access (provided by USB debugging)
+
+3. **Advantages:**
+   - ⚡ 20x faster than legacy method (seconds vs minutes)
+   - ✅ Works with current WhatsApp version (no downgrade)
+   - ✅ Compatible with Android 11+ (where `adb backup` is deprecated)
+   - ✅ No phone number re-verification needed
+
+**When Direct Extraction Fails:**
+
+Legacy backup method is available as fallback:
+- Requires legacy APK (2.11.431-2.11.498)
+- Downgrades WhatsApp temporarily
+- Uses `adb backup` to create encrypted backup
+- Takes 15-30 minutes additional time
+- See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for details
 
 ### Timestamp Conversion
 
@@ -549,21 +538,35 @@ iOS uses Core Data framework with complex relationships. The migration script cr
 
 ## Common Issues
 
-### Android Backup Fails
+### Direct Extraction Fails
 
-**Symptom:** `adb backup` command hangs or returns empty file
+**Symptom:** `Could not access database file` or extraction returns empty/corrupted file
 
 **Causes:**
-1. Screen locked during backup
-2. Password set for backup (must be blank)
-3. WhatsApp not running
-4. USB debugging disabled mid-process
+1. Storage permissions not granted to WhatsApp
+2. Database in non-standard location
+3. WhatsApp not installed or never opened
+4. Custom ROM with different file structure
 
 **Solutions:**
-1. Unlock screen and keep awake
-2. Restart from Step 4, leave password blank
-3. Open WhatsApp, wait for chats to load
-4. Re-enable USB debugging: Settings → Developer Options
+1. **Grant Storage Permissions:**
+   - Settings → Apps → WhatsApp → Permissions → Storage → Allow
+   - Open WhatsApp to ensure database is created
+
+2. **Try Alternative Paths:**
+   - Script automatically tries multiple common locations
+   - Check manually: Use file manager app to locate `msgstore.db`
+
+3. **Use Legacy Method:**
+   - Download legacy APK to `apk/` folder
+   - Retry migration - script will offer legacy method
+   - Requires phone number re-verification
+
+4. **Manual Export:**
+   - WhatsApp → Settings → Chats → Chat backup → Export
+   - Copy msgstore.db manually via USB
+   - Place in `out/android.db`
+   - Resume migration from Step 4
 
 ### iOS Backup Not Found
 
@@ -844,10 +847,7 @@ A: The migration REPLACES iOS data with Android data. Messages on iOS will be LO
 **Q: Is this tool safe?**  
 A: The tool creates backups before destructive operations, but **use at your own risk**. Always create manual backups.
 
-**Q: Can I migrate between different phone numbers?**  
-A: No, phone number must remain the same. Changing numbers requires WhatsApp's official "Change Number" feature separately.
-
 ---
 
-**Last Updated:** November 28, 2025  
-**Version:** 1.0.0
+**Last Updated:** November 29, 2025  
+**Version:** 1.1.0
