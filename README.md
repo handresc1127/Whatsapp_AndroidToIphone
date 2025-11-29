@@ -10,22 +10,20 @@ Migrate your WhatsApp chat history from Android to iOS devices with complete mes
 # 1. Run setup script FIRST (downloads dependencies)
 python setup.py
 
-# 2. Follow setup instructions to download Legacy WhatsApp APK
-
-# 3. Connect devices
+# 2. Connect devices
 # - Connect Android via USB (USB debugging enabled)
 # - Create iOS backup via iTunes/Finder (unencrypted)
 
-# 4. Run migration
+# 3. Run migration
 python main.py
 
-# 5. Follow interactive prompts
-# 6. Restore modified iOS backup
+# 4. Follow interactive prompts
+# 5. Restore modified iOS backup
 ```
 
 **📖 Detailed Setup:** See [SETUP_FIRST.md](SETUP_FIRST.md) for complete setup instructions.
 
-**⚠️ Warning:** This tool modifies iOS backups and downgrades Android WhatsApp. **Use at your own risk.** Always create manual backups first.
+**⚠️ Warning:** This tool modifies iOS backups. **Use at your own risk.** Always create manual backups first.
 
 ---
 
@@ -83,21 +81,21 @@ python main.py
    - Extract to: `bin/adb.exe`, `bin/AdbWinApi.dll`, `bin/AdbWinUsbApi.dll`
    - See: [bin/README.md](bin/README.md)
 
-2. **Legacy WhatsApp APK:**
-   - Version: 2.11.431 - 2.11.498 (required for unencrypted backups)
+2. **iTunes (Windows) or Finder (macOS):**
+   - For iOS device backups
+   - Download: [Apple iTunes](https://www.apple.com/itunes/)
+
+3. **Legacy WhatsApp APK (Optional - for fallback method):**
+   - Version: 2.11.431 - 2.11.498 (only needed if direct extraction fails)
    - Download from: [APKMirror](https://www.apkmirror.com/apk/whatsapp-inc/whatsapp/) (legal sources only)
    - Place in: `apk/WhatsApp_2.11.431.apk`
    - See: [apk/README.md](apk/README.md)
    - **⚠️ Legal Warning:** Only for personal data migration
 
-3. **iTunes (Windows) or Finder (macOS):**
-   - For iOS device backups
-   - Download: [Apple iTunes](https://www.apple.com/itunes/)
-
 ### Device Requirements
 
 **Android:**
-- Android 4.0+ (Ice Cream Sandwich or newer)
+- Android 8.0+ (Oreo or newer recommended)
 - USB debugging enabled
 - WhatsApp installed with data to migrate
 

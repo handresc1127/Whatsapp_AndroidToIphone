@@ -53,13 +53,17 @@ def validate_dependencies(logger):
         for filepath, description in required_files.items():
             validate_file_exists(filepath, description, logger)
     
-    # Validar directorios
-    validate_directory_exists('apk', 'APK directory for legacy WhatsApp files', logger)
-    
-    # Informar sobre APKs (no son obligatorios hasta que se seleccione el tipo)
     print("\n[OK] Core dependencies validated")
-    print("\nNOTE: Legacy WhatsApp APKs are required but will be validated when needed.")
-    print("      See apk/README.md for download instructions.\n")
+    
+    # Validar APKs legacy (opcional - solo para método fallback)
+    apk_dir_exists = os.path.exists('apk')
+    if apk_dir_exists:
+        print("\n[INFO] Legacy APK directory found (optional)")
+        print("       Legacy backup method available as fallback")
+    else:
+        print("\n[INFO] Legacy APK directory not found (optional)")
+        print("       Only direct extraction method will be available")
+        print("       This is fine for most users")
     
     logger.info("All core dependencies validated successfully")
 
@@ -123,56 +127,66 @@ def android_backup_process(whatsapp_type, logger):
             logger.error("Android device not connected")
             return None
         
-        # Confirmar proceso
+        # Confirmar proceso de extracción directa
         print("\n" + "="*80)
-        print("WARNING: This process will:")
-        print("  1. Uninstall current WhatsApp")
-        print("  2. Install legacy WhatsApp version")
-        print("  3. Create unencrypted backup")
+        print("ANDROID DATABASE EXTRACTION")
+        print("="*80)
         print()
-        print("NOTE: Your WhatsApp data in /sdcard/WhatsApp/ will be preserved.")
-        print("      The app will be downgraded but your chats remain safe.")
+        print("This will extract WhatsApp database directly from your device.")
+        print()
+        print("METHOD:")
+        print("  - Direct extraction from /sdcard/ (no backup needed)")
+        print("  - Works with current WhatsApp version (no downgrade)")
+        print("  - Requires storage permissions granted to WhatsApp")
+        print("  - Fast extraction (usually < 1 minute)")
+        print()
+        print("REQUIREMENTS:")
+        print("  - WhatsApp installed with active chats")
+        print("  - Storage permissions enabled for WhatsApp")
+        print("  - USB debugging enabled")
         print("="*80)
         
         if not confirm_action("\nDo you want to continue?"):
-            logger.info("User cancelled Android backup process")
+            logger.info("User cancelled Android extraction process")
             return None
         
-        # Desinstalar WhatsApp completamente (sin -k para permitir downgrade)
-        # Los datos en /sdcard/WhatsApp/ se preservan automáticamente
-        if not android_mgr.uninstall_whatsapp(keep_data=False):
-            logger.error("Failed to uninstall WhatsApp")
-            return None
+        # Método 1: Extracción directa (principal)
+        logger.info("Attempting direct database extraction...")
+        print("\n[INFO] Attempting direct database extraction...")
         
-        # Instalar APK legacy
-        if not android_mgr.install_legacy_apk():
-            logger.error("Failed to install legacy APK")
-            return None
+        android_db = android_mgr.extract_database_directly()
         
-        # Crear backup
-        if not android_mgr.create_backup():
-            logger.error("Failed to create Android backup")
-            return None
+        if android_db:
+            # Validar integridad de la base de datos
+            if android_mgr.validate_database(android_db):
+                print("\nYou can now safely disconnect your Android device.")
+                return android_db
+            else:
+                logger.error("Database validation failed")
+                android_db = None
         
-        input("\nPress Enter once the backup is complete...")
-        
-        # Convertir .ab a .tar
-        if not android_mgr.extract_ab_to_tar('tmp/whatsapp.ab', 'tmp/whatsapp.tar'):
-            logger.error("Failed to convert .ab to .tar")
-            return None
-        
-        # Extraer msgstore.db
-        android_db = android_mgr.extract_msgstore_db('tmp/whatsapp.tar')
+        # Método 2: Legacy fallback (solo si usuario lo solicita)
         if not android_db:
-            logger.error("Failed to extract msgstore.db")
+            logger.warning("Direct extraction failed")
+            print("\n[WARNING] Direct extraction failed.")
+            print("\nThis can happen if:")
+            print("  - WhatsApp doesn't have storage permissions")
+            print("  - Database file is in non-standard location")
+            print("  - WhatsApp is not installed or has no data")
+            print()
+            print("Alternative methods:")
+            print("  1. Legacy APK backup (requires downgrade)")
+            print("  2. Manual file transfer")
+            print("  3. Cancel migration")
+            
+            if confirm_action("\nTry legacy APK backup method?", default=False):
+                android_db = android_mgr.legacy_backup_process()
+                if android_db:
+                    print("\nYou can now safely disconnect your Android device.")
+                    return android_db
+            
+            logger.error("Failed to extract Android database")
             return None
-        
-        # Cleanup
-        android_mgr.cleanup()
-        
-        print("\n[OK] Android backup process complete")
-        print(f"[OK] Database saved to: {android_db}")
-        print("\nYou can now safely remove your Android device.")
         
         return android_db
         
@@ -255,6 +269,11 @@ def migration_process(android_db, ios_db, logger):
         
         # Ejecutar migración
         output_db = 'out/out.db'
+        ensure_directory('out')
+        
+        print("\n[INFO] Starting database migration...")
+        print("[INFO] This may take several minutes depending on chat history size...")
+        
         stats = migrator.run_migration(output_db)
         
         print("\n" + "="*80)
@@ -263,14 +282,22 @@ def migration_process(android_db, ios_db, logger):
         print(f"Android messages:      {stats['android_messages']:,}")
         print(f"iOS messages (before): {stats['ios_messages_before']:,}")
         print(f"Messages migrated:     {stats['migrated']:,}")
-        print(f"Duplicates skipped:    {stats['duplicates']:,}")
+        print(f"Contacts migrated:     {stats['contacts']:,}")
+        print(f"Groups migrated:       {stats['groups']:,}")
         print(f"iOS messages (after):  {stats['ios_messages_after']:,}")
         print("="*80)
         
         return output_db
         
+    except NotImplementedError as e:
+        logger.error(f"Migration not supported: {e}")
+        print(f"\n[ERROR] Migration feature not implemented: {e}")
+        print("\nThis database schema is not yet supported.")
+        print("Please check for updates or use legacy backup method.")
+        return None
     except Exception as e:
         logger.error(f"Migration process failed: {e}")
+        print(f"\n[ERROR] Migration failed: {e}")
         return None
 
 

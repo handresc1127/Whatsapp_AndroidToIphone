@@ -317,3 +317,224 @@ class AndroidBackupManager:
             
         except Exception as e:
             self.logger.warning(f"Cleanup failed: {e}")
+    
+    def extract_database_directly(self) -> Optional[str]:
+        """
+        Intenta extraer msgstore.db directamente desde /sdcard/WhatsApp/Databases/
+        Requiere que la app tenga permisos de almacenamiento.
+        
+        Returns:
+            Ruta del archivo msgstore.db extraído, None si falla
+        """
+        try:
+            self.logger.info("Attempting direct database extraction...")
+            ensure_directory('out')
+            
+            # Ruta de la base de datos en el dispositivo
+            if self.config['package'] == 'com.whatsapp.w4b':
+                remote_db = '/sdcard/Android/media/com.whatsapp.w4b/WhatsApp Business/Databases/msgstore.db'
+                alt_remote_db = '/sdcard/WhatsApp Business/Databases/msgstore.db'
+            else:
+                remote_db = '/sdcard/Android/media/com.whatsapp/WhatsApp/Databases/msgstore.db'
+                alt_remote_db = '/sdcard/WhatsApp/Databases/msgstore.db'
+            
+            local_db = 'out/android.db'
+            
+            print(f"\n[INFO] Attempting to pull database from device...")
+            print(f"      Trying: {remote_db}")
+            
+            # Intentar con primera ubicación
+            result = run_adb_command([
+                self.adb_cmd, 'pull', remote_db, local_db
+            ], check=False, timeout=60)
+            
+            # Si falla, intentar ubicación alternativa
+            if result.returncode != 0:
+                print(f"      Trying alternative: {alt_remote_db}")
+                result = run_adb_command([
+                    self.adb_cmd, 'pull', alt_remote_db, local_db
+                ], check=False, timeout=60)
+            
+            # Verificar si se extrajo
+            if os.path.exists(local_db) and os.path.getsize(local_db) > 0:
+                size_mb = os.path.getsize(local_db) / (1024 * 1024)
+                self.logger.info(f"Database extracted directly: {size_mb:.2f} MB")
+                print(f"\n[OK] Database extracted successfully ({size_mb:.2f} MB)")
+                return local_db
+            else:
+                self.logger.error("Direct extraction failed - file not accessible")
+                print("\n[ERROR] Could not access database file.")
+                print("\nPossible solutions:")
+                print("  1. Grant storage permissions to WhatsApp")
+                print("  2. Use a file manager to copy msgstore.db to internal storage")
+                print("  3. Try WhatsApp's built-in backup to Google Drive and download")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Direct extraction failed: {e}")
+            return None
+    
+    def validate_database(self, db_path: str) -> bool:
+        """
+        Valida que la base de datos extraída sea válida y procesable.
+        
+        Args:
+            db_path: Ruta del archivo de base de datos
+        
+        Returns:
+            True si la DB es válida, False en caso contrario
+        """
+        try:
+            import sqlite3
+            from .utils import confirm_action
+            
+            self.logger.info(f"Validating database: {db_path}")
+            
+            # 1. Verificar que el archivo existe y no está vacío
+            if not os.path.exists(db_path):
+                self.logger.error("Database file does not exist")
+                return False
+            
+            file_size = os.path.getsize(db_path)
+            if file_size == 0:
+                self.logger.error("Database file is empty")
+                return False
+            
+            # 2. Verificar header SQLite
+            with open(db_path, 'rb') as f:
+                header = f.read(16)
+            
+            if not header.startswith(b'SQLite format 3'):
+                self.logger.error("Not a valid SQLite database")
+                print("\n[ERROR] Database file is corrupted or encrypted")
+                print("The file does not have a valid SQLite header.")
+                return False
+            
+            # 3. Intentar conectar y verificar tablas
+            conn = sqlite3.connect(db_path)
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+            tables = [row[0] for row in cursor.fetchall()]
+            
+            # Verificar tablas mínimas requeridas
+            required_tables = ['messages', 'chat']
+            missing_tables = [t for t in required_tables if t not in tables]
+            
+            if missing_tables:
+                self.logger.error(f"Missing required tables: {missing_tables}")
+                print(f"\n[ERROR] Database is missing required tables: {', '.join(missing_tables)}")
+                conn.close()
+                return False
+            
+            # 4. Verificar que hay datos
+            cursor = conn.execute("SELECT COUNT(*) FROM messages")
+            message_count = cursor.fetchone()[0]
+            
+            if message_count == 0:
+                self.logger.warning("Database has no messages")
+                print("\n[WARNING] Database is empty (no messages found)")
+                if not confirm_action("Continue anyway?", default=False):
+                    conn.close()
+                    return False
+            
+            # 5. Detectar esquema (legacy vs moderno)
+            if 'message_quoted' in tables or 'message_ephemeral' in tables:
+                schema_version = 'modern'
+            else:
+                schema_version = 'legacy'
+            
+            self.logger.info(f"Database schema: {schema_version}")
+            self.logger.info(f"Messages: {message_count:,}")
+            self.logger.info(f"Tables: {len(tables)}")
+            
+            print(f"\n[OK] Database validated successfully")
+            print(f"     Schema: {schema_version}")
+            print(f"     Messages: {message_count:,}")
+            print(f"     Size: {file_size / (1024 * 1024):.2f} MB")
+            
+            conn.close()
+            return True
+            
+        except sqlite3.DatabaseError as e:
+            self.logger.error(f"Database validation failed: {e}")
+            print(f"\n[ERROR] Database validation failed: {e}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error during validation: {e}")
+            return False
+    
+    def legacy_backup_process(self) -> Optional[str]:
+        """
+        Ejecuta el proceso completo de backup legacy (downgrade + adb backup).
+        
+        SOLO usar como fallback cuando extracción directa falla.
+        
+        Returns:
+            Ruta del archivo msgstore.db extraído, None si falla
+        """
+        try:
+            from .utils import confirm_action
+            
+            self.logger.info("Starting legacy backup process...")
+            print("\n" + "="*80)
+            print("LEGACY BACKUP PROCESS")
+            print("="*80)
+            print()
+            print("WARNING: This will temporarily downgrade WhatsApp to version 2.11.x")
+            print()
+            print("Steps:")
+            print("  1. Uninstall current WhatsApp (data preserved)")
+            print("  2. Install legacy WhatsApp APK")
+            print("  3. Create unencrypted backup via adb")
+            print("  4. Extract msgstore.db")
+            print()
+            print("IMPORTANT:")
+            print("  - You will need to verify your phone number again")
+            print("  - This takes 5-15 minutes")
+            print("  - Legacy APK must be available in apk/ folder")
+            print("="*80)
+            
+            if not confirm_action("\nProceed with legacy backup?", default=False):
+                self.logger.info("User cancelled legacy backup")
+                return None
+            
+            # Desinstalar WhatsApp actual
+            if not self.uninstall_whatsapp(keep_data=True):
+                self.logger.error("Failed to uninstall current WhatsApp")
+                return None
+            
+            # Instalar APK legacy
+            if not self.install_legacy_apk():
+                self.logger.error("Failed to install legacy APK")
+                return None
+            
+            # Crear backup
+            if not self.create_backup():
+                self.logger.error("Failed to create backup")
+                return None
+            
+            input("\nPress Enter once the backup is complete...")
+            
+            # Convertir .ab a .tar
+            if not self.extract_ab_to_tar('tmp/whatsapp.ab', 'tmp/whatsapp.tar'):
+                self.logger.error("Failed to convert .ab to .tar")
+                return None
+            
+            # Extraer msgstore.db
+            android_db = self.extract_msgstore_db('tmp/whatsapp.tar')
+            if not android_db:
+                self.logger.error("Failed to extract msgstore.db")
+                return None
+            
+            # Cleanup
+            self.cleanup()
+            
+            print("\n[OK] Legacy backup process completed")
+            print(f"[OK] Database: {android_db}")
+            
+            return android_db
+            
+        except Exception as e:
+            self.logger.error(f"Legacy backup process failed: {e}")
+            return None

@@ -27,16 +27,16 @@ Step-by-step instructions for migrating WhatsApp data from Android to iOS.
    - This tool creates automatic backups, but manual backups are extra insurance
 
 2. **RISKS:**
-   - Downgrading WhatsApp on Android may cause compatibility issues
    - iOS backup modification is irreversible once restored
    - Data loss is possible if process is interrupted
    - **USE AT YOUR OWN RISK**
 
 3. **REQUIREMENTS:**
-   - Android device must be unlocked and screen ON during entire process
+   - Android device must be unlocked and screen ON during extraction
+   - WhatsApp must have storage permissions enabled
    - iOS device must be disconnected during backup modification
    - Stable USB connections (no hubs/extenders recommended)
-   - At least 30-60 minutes uninterrupted time
+   - At least 15-30 minutes uninterrupted time
 
 4. **NOT SUPPORTED:**
    - Media files (photos, videos, audio) - only message text and metadata
@@ -52,8 +52,8 @@ Before starting migration, verify:
 - [ ] Setup completed ([SETUP.md](SETUP.md))
 - [ ] Python 3.8+ installed
 - [ ] ADB binaries in `bin/` folder
-- [ ] Legacy WhatsApp APK in `apk/` folder
 - [ ] Android device connected and authorized (`adb devices` shows device)
+- [ ] WhatsApp has storage permissions enabled on Android
 - [ ] iOS device has recent unencrypted backup
 - [ ] At least 5GB free disk space
 - [ ] Manual backups created for both devices
@@ -63,26 +63,26 @@ Before starting migration, verify:
 
 ## Migration Process Overview
 
-The migration involves **6 main steps**:
+The migration involves **5 main steps**:
 
 ```
 Step 1: Validate Dependencies
   ↓
-Step 2: Backup Current Android WhatsApp
+Step 2: Direct Database Extraction (Android)
   ↓
-Step 3: Downgrade to Legacy WhatsApp
+Step 3: Validate Database
   ↓
-Step 4: Create Android Backup (.ab file)
+Step 4: Extract and Migrate Database
   ↓
-Step 5: Extract and Migrate Database
+Step 5: Inject into iOS Backup
   ↓
-Step 6: Inject into iOS Backup
-  ↓
-Step 7: Restore iOS Backup
+Step 6: Restore iOS Backup
 ```
 
-**Estimated Time:** 30-60 minutes  
+**Estimated Time:** 10-20 minutes  
 **Requires User Interaction:** Yes (confirmations at each step)
+
+**Note:** If direct extraction fails, a legacy backup method is available as fallback.
 
 ---
 

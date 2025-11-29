@@ -37,6 +37,40 @@ class WhatsAppMigrator:
         self.android_conn: Optional[sqlite3.Connection] = None
         self.ios_conn: Optional[sqlite3.Connection] = None
         self.output_conn: Optional[sqlite3.Connection] = None
+        self.schema_version: Optional[str] = None
+    
+    def detect_schema_version(self) -> str:
+        """
+        Detecta la versión del esquema de la base de datos Android.
+        
+        Returns:
+            'legacy' para WhatsApp 2.11.x, 'modern' para 2.20.x+
+        """
+        try:
+            cursor = self.android_conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+            tables = [row[0] for row in cursor.fetchall()]
+            
+            # Tablas que solo existen en versiones modernas
+            modern_indicators = [
+                'message_quoted',
+                'message_ephemeral',
+                'message_poll',
+                'message_view_once'
+            ]
+            
+            for indicator in modern_indicators:
+                if indicator in tables:
+                    self.logger.info(f"Detected modern schema (found table: {indicator})")
+                    return 'modern'
+            
+            self.logger.info("Detected legacy schema")
+            return 'legacy'
+        except Exception as e:
+            self.logger.error(f"Error detecting schema version: {e}")
+            # Default to modern for safety
+            return 'modern'
     
     def connect_databases(self) -> None:
         """Conecta a las bases de datos Android e iOS."""
@@ -129,13 +163,24 @@ class WhatsAppMigrator:
             Timestamp en formato iOS (segundos desde 2001)
         """
         if android_timestamp is None or android_timestamp == 0:
-            return 0.0
+            # Usar timestamp actual como fallback
+            import time
+            return time.time() - TIMESTAMP_OFFSET
         
         # Convertir milisegundos a segundos
         unix_seconds = android_timestamp / 1000.0
         
         # Restar offset para convertir a Apple Epoch
         apple_seconds = unix_seconds - TIMESTAMP_OFFSET
+        
+        # Validar rango (2001-01-01 a 2060-01-01)
+        MIN_TIMESTAMP = 0
+        MAX_TIMESTAMP = 1893456000
+        
+        if not (MIN_TIMESTAMP <= apple_seconds <= MAX_TIMESTAMP):
+            self.logger.warning(f"Timestamp out of range: {apple_seconds}, using current time")
+            import time
+            return time.time() - TIMESTAMP_OFFSET
         
         return apple_seconds
     
@@ -191,6 +236,137 @@ class WhatsAppMigrator:
         except Exception as e:
             self.logger.error(f"Error copying iOS schema: {e}")
             raise
+    
+    def _migrate_modern_schema(self) -> Tuple[int, int]:
+        """
+        Migra mensajes desde esquema moderno (WhatsApp 2.20.x+).
+        
+        Returns:
+            Tupla (mensajes_migrados, duplicados_omitidos)
+        """
+        migrated = 0
+        duplicates = 0
+        
+        try:
+            self.logger.info("Starting modern schema migration...")
+            
+            # Obtener siguiente Z_PK disponible en iOS
+            cursor = self.output_conn.execute("SELECT IFNULL(MAX(Z_PK), 0) FROM ZWAMESSAGE")
+            next_pk = cursor.fetchone()[0] + 1
+            
+            # Leer mensajes de Android (solo campos base para compatibilidad)
+            android_cursor = self.android_conn.execute("""
+                SELECT 
+                    m._id,
+                    m.key_remote_jid,
+                    m.key_from_me,
+                    m.data,
+                    m.timestamp,
+                    m.status,
+                    COALESCE(m.media_wa_type, 0) as media_type,
+                    COALESCE(m.starred, 0) as starred
+                FROM messages m
+                WHERE m.data IS NOT NULL
+                ORDER BY m.timestamp ASC
+            """)
+            
+            total_messages = 0
+            for row in android_cursor:
+                total_messages += 1
+            
+            self.logger.info(f"Found {total_messages} messages to migrate")
+            
+            # Reiniciar cursor para migración
+            android_cursor = self.android_conn.execute("""
+                SELECT 
+                    m._id,
+                    m.key_remote_jid,
+                    m.key_from_me,
+                    m.data,
+                    m.timestamp,
+                    m.status,
+                    COALESCE(m.media_wa_type, 0) as media_type,
+                    COALESCE(m.starred, 0) as starred
+                FROM messages m
+                WHERE m.data IS NOT NULL
+                ORDER BY m.timestamp ASC
+            """)
+            
+            for row in android_cursor:
+                android_id, remote_jid, from_me, text, timestamp, status, media_type, starred = row
+                
+                # Convertir timestamp
+                ios_timestamp = self.convert_timestamp(timestamp)
+                
+                # Determinar JIDs según dirección
+                if from_me:
+                    to_jid = remote_jid
+                    from_jid = self.phone_number
+                else:
+                    to_jid = None
+                    from_jid = remote_jid
+                
+                # Mapear tipo de mensaje (simplificado)
+                ios_message_type = 0 if media_type == 0 else media_type
+                
+                # Mapear status (simplificado, iOS usa 0-5)
+                ios_status = min(status if status else 0, 5)
+                
+                # Insertar en iOS
+                self.output_conn.execute("""
+                    INSERT INTO ZWAMESSAGE (
+                        Z_PK, Z_ENT, Z_OPT,
+                        ZISFROMME, ZMESSAGESTATUS, ZMESSAGETYPE, ZISSTARRED,
+                        ZTEXT, ZMESSAGEDATE, ZSENTDATE, ZRECEIVEDDATE,
+                        ZTOJID, ZFROMJID
+                    ) VALUES (?, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    next_pk,
+                    from_me,
+                    ios_status,
+                    ios_message_type,
+                    starred,
+                    text,
+                    ios_timestamp,
+                    ios_timestamp,
+                    ios_timestamp,
+                    to_jid,
+                    from_jid
+                ))
+                
+                next_pk += 1
+                migrated += 1
+                
+                # Progress logging cada 1000 mensajes
+                if migrated % 1000 == 0:
+                    self.logger.info(f"Migrated {migrated}/{total_messages} messages...")
+                    print(f"\rProgress: {migrated}/{total_messages} messages migrated", end='', flush=True)
+            
+            if migrated > 0:
+                print()  # Newline después de progress
+            
+            self.output_conn.commit()
+            self.logger.info(f"Modern schema migration completed: {migrated} messages")
+            
+            return migrated, duplicates
+            
+        except Exception as e:
+            self.logger.error(f"Error in modern schema migration: {e}")
+            self.output_conn.rollback()
+            raise
+    
+    def _migrate_legacy_schema(self) -> Tuple[int, int]:
+        """
+        Migra mensajes desde esquema legacy (WhatsApp 2.11.x).
+        
+        Returns:
+            Tupla (mensajes_migrados, duplicados_omitidos)
+        """
+        self.logger.warning("Legacy schema migration not yet implemented")
+        raise NotImplementedError(
+            "Legacy schema (WhatsApp 2.11.x) migration is not yet implemented. "
+            "Please use a modern version of WhatsApp or request this feature."
+        )
     
     def migrate_messages(self) -> Tuple[int, int]:
         """
@@ -305,18 +481,28 @@ class WhatsAppMigrator:
         
         Returns:
             Diccionario con estadísticas de la migración
+            
+        Raises:
+            NotImplementedError: Si el esquema detectado no está soportado
         """
         stats = {
             'android_messages': 0,
             'ios_messages_before': 0,
             'ios_messages_after': 0,
             'migrated': 0,
-            'duplicates': 0
+            'duplicates': 0,
+            'contacts': 0,
+            'groups': 0
         }
         
         try:
             # Conectar a bases de datos
             self.connect_databases()
+            
+            # Detectar versión de esquema
+            self.schema_version = self.detect_schema_version()
+            self.logger.info(f"Detected schema version: {self.schema_version}")
+            print(f"\n[INFO] Database schema: {self.schema_version}")
             
             # Analizar esquemas
             self.logger.info("Analyzing database schemas...")
@@ -330,10 +516,19 @@ class WhatsAppMigrator:
             # Copiar esquema iOS a output
             self.copy_ios_schema_to_output(output_path)
             
-            # Migrar mensajes
-            migrated, duplicates = self.migrate_messages()
+            # Migrar mensajes según esquema
+            print(f"\n[INFO] Starting migration with {self.schema_version} schema...")
+            if self.schema_version == 'modern':
+                migrated, duplicates = self._migrate_modern_schema()
+            else:
+                migrated, duplicates = self._migrate_legacy_schema()
+            
             stats['migrated'] = migrated
             stats['duplicates'] = duplicates
+            
+            # TODO: Migrar contactos y grupos (futuro)
+            stats['contacts'] = 0
+            stats['groups'] = 0
             
             # Conteo final
             cursor = self.output_conn.cursor()

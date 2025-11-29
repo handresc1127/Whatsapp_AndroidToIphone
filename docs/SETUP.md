@@ -31,9 +31,10 @@ Complete installation and setup instructions for migrating WhatsApp data from An
 
 ### Devices
 - **Android Device**:
-  - Android 4.0+ (Ice Cream Sandwich or newer)
+  - Android 8.0+ (Oreo or newer recommended)
   - WhatsApp installed with data to migrate
   - USB debugging enabled (Developer Options)
+  - Storage permissions granted to WhatsApp
   - Screen unlocked during process
   
 - **iOS Device**:
