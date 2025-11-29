@@ -165,29 +165,44 @@ def android_backup_process(whatsapp_type, logger):
                 logger.error("Database validation failed")
                 android_db = None
         
-        # Método 2: Legacy fallback (solo si usuario lo solicita)
+        # Método 2: Verificar si hay archivo encriptado extraído
         if not android_db:
-            logger.warning("Direct extraction failed")
-            print("\n[WARNING] Direct extraction failed.")
-            print("\nThis can happen if:")
-            print("  - WhatsApp doesn't have storage permissions")
-            print("  - Database file is in non-standard location")
-            print("  - WhatsApp is not installed or has no data")
-            print("  - Custom ROM with different file structure")
-            print()
-            print("Recommended solutions:")
-            print("  1. Grant storage permissions: Settings → Apps → WhatsApp → Permissions → Storage")
-            print("  2. Copy database manually via USB to out/android.db")
-            print("  3. Use Android file manager to locate and export msgstore.db")
-            print("  4. Try WhatsApp cloud backup and download from Google Drive")
-            print()
-            print("Note: This tool no longer supports legacy APK downgrade method.")
-            print("      If direct extraction doesn't work, manual file transfer is required.")
+            # Verificar si hay .crypt14 en tmp/ (extraído pero no desencriptado)
+            import glob
+            encrypted_files = glob.glob('tmp/msgstore*.crypt*')
             
-            logger.error("Failed to extract Android database - manual intervention required")
-            print("\n[ERROR] Automatic extraction failed. Please transfer database manually.")
-            print("\nSee docs/USAGE.md for manual extraction instructions.")
-            return None
+            if encrypted_files:
+                # Ya se mostró guía de desencriptación en android_backup.py
+                logger.info("Encrypted database found - waiting for manual decryption")
+                print("\n" + "="*80)
+                print("⏸️  MIGRATION PAUSED")
+                print("="*80)
+                print("\nEncrypted database has been extracted successfully.")
+                print("Please follow the decryption steps shown above.")
+                print("\nOnce decrypted, place the file in: out/android.db")
+                print("Then run 'python main.py' again to continue.")
+                print("\n" + "="*80)
+                return None
+            else:
+                # No se encontró ningún archivo
+                logger.warning("Direct extraction failed - no database found")
+                print("\n[WARNING] Could not find WhatsApp database on device.")
+                print("\nThis can happen if:")
+                print("  - WhatsApp doesn't have storage permissions")
+                print("  - Database file is in non-standard location")
+                print("  - WhatsApp is not installed or has no data")
+                print("  - Custom ROM with different file structure")
+                print()
+                print("Recommended solutions:")
+                print("  1. Grant storage permissions: Settings → Apps → WhatsApp → Permissions → Storage")
+                print("  2. Open WhatsApp to ensure database is created")
+                print("  3. Use Android file manager to locate and copy msgstore.db.crypt14")
+                print("  4. Copy to computer and place in tmp/ folder")
+                print()
+                print("📖 See docs/ENCRYPTED_DATABASES.md for detailed instructions.")
+                
+                logger.error("Failed to extract Android database - manual intervention required")
+                return None
         
         return android_db
         

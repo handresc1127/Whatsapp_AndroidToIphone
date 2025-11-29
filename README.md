@@ -291,10 +291,14 @@ Settings → Developer Options → Enable "USB Debugging"
 # Modern WhatsApp encrypts databases by default
 # Script will attempt automatic decryption (requires root)
 
-# If automatic fails:
+# If automatic fails (no root):
+# Use the decryption helper script:
+python decrypt_helper.py
+
+# Or decrypt manually:
 # 1. Use WhatsApp Key Extractor tool (no root needed)
 # 2. Decrypt manually with wa-crypt-tools
-# 3. See docs/USAGE.md for detailed instructions
+# 3. See docs/ENCRYPTED_DATABASES.md for detailed instructions
 ```
 
 **iOS backup not found:**
