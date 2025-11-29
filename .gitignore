@@ -231,14 +231,6 @@ migration_*.log
 *.ab
 *.tar
 
-# APK files (download separately)
-apk/*.apk
-
-# ADB binaries (download separately)
-bin/adb.exe
-bin/AdbWinApi.dll
-bin/AdbWinUsbApi.dll
-
 # iOS backup directories
 Backup.~/
 
