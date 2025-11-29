@@ -61,51 +61,94 @@ def check_adb():
 
 def download_legacy_apk():
     """Descarga el APK legacy de WhatsApp."""
-    print("\nDownloading WhatsApp Legacy APK...")
+    print("\nChecking WhatsApp Legacy APKs...")
     
     apk_dir = Path('apk')
     apk_dir.mkdir(exist_ok=True)
     
-    apk_path = apk_dir / 'LegacyWhatsApp.apk'
+    # Verificar ambas versiones
+    standard_apk = apk_dir / 'LegacyWhatsApp.apk'
+    business_apk = apk_dir / 'LegacyWhatsAppBusiness.apk'
     
-    # Verificar si ya existe
-    if apk_path.exists():
-        size_mb = apk_path.stat().st_size / (1024 * 1024)
-        print(f"  ✓ APK already exists: {apk_path} ({size_mb:.2f} MB)")
-        
-        response = input("\n  Do you want to re-download it? [y/N]: ").strip().upper()
+    standard_exists = standard_apk.exists()
+    business_exists = business_apk.exists()
+    
+    # Mostrar estado actual
+    if standard_exists:
+        size_mb = standard_apk.stat().st_size / (1024 * 1024)
+        print(f"  ✓ WhatsApp Standard APK: {standard_apk} ({size_mb:.2f} MB)")
+    else:
+        print(f"  ✗ WhatsApp Standard APK: Not found")
+    
+    if business_exists:
+        size_mb = business_apk.stat().st_size / (1024 * 1024)
+        print(f"  ✓ WhatsApp Business APK: {business_apk} ({size_mb:.2f} MB)")
+    else:
+        print(f"  ✗ WhatsApp Business APK: Not found")
+    
+    # Si al menos uno existe, preguntar si quiere continuar
+    if standard_exists or business_exists:
+        response = input("\n  Do you want to download/update APKs? [y/N]: ").strip().upper()
         if response != 'Y':
-            return True
+            # Retornar True si al menos uno existe
+            return standard_exists or business_exists
     
     print("\n" + "="*80)
     print("IMPORTANT: APK Download Information")
     print("="*80)
-    print("\nWhatsApp Legacy APK (v2.11.431) is required for unencrypted backups.")
-    print("\nDue to copyright restrictions, this script CANNOT download it automatically.")
-    print("\nPlease follow these manual steps:")
-    print("\n1. Visit: https://www.apkmirror.com/apk/whatsapp-inc/whatsapp/")
-    print("\n2. Search for version: 2.11.431 (August 2014)")
-    print("\n3. Download the APK file")
-    print("\n4. Save it as: apk/LegacyWhatsApp.apk")
-    print("\n5. Come back and run this setup again")
+    print("\nLegacy WhatsApp APKs are required for unencrypted backups.")
+    print("\nDue to copyright restrictions, this script CANNOT download them automatically.")
     print("\n" + "="*80)
-    print("\nWhy version 2.11.431?")
-    print("  - Last version WITHOUT AES-256 encryption")
+    print("\n📱 FOR WHATSAPP STANDARD:")
+    print("="*80)
+    print("  1. Visit: https://www.apkmirror.com/apk/whatsapp-inc/whatsapp/")
+    print("  2. Search: WhatsApp 2.11.431 (August 2014)")
+    print("  3. Download the APK")
+    print("  4. Rename to: LegacyWhatsApp.apk")
+    print("  5. Move to: apk\\")
+    
+    print("\n" + "="*80)
+    print("\n💼 FOR WHATSAPP BUSINESS:")
+    print("="*80)
+    print("  1. Visit: https://www.apkmirror.com/apk/whatsapp-inc/whatsapp-business/")
+    print("  2. Search: WhatsApp Business 2.18.x or earlier versions")
+    print("  3. Download the APK")
+    print("  4. Rename to: LegacyWhatsAppBusiness.apk")
+    print("  5. Move to: apk\\")
+    
+    print("\n" + "="*80)
+    print("\nWhy legacy versions?")
+    print("  - Old versions DON'T use AES-256 encryption")
     print("  - Allows extraction of msgstore.db from backups")
-    print("  - Versions 2.12+ use encrypted backups (won't work)")
+    print("  - Modern versions use encrypted backups (won't work)")
+    print("\n  WhatsApp Standard: v2.11.431 (Aug 2014)")
+    print("  WhatsApp Business: v2.18.x or earlier")
     print("\n" + "="*80)
     
-    response = input("\nHave you already downloaded the APK? [y/N]: ").strip().upper()
+    response = input("\nHave you already downloaded the APK(s)? [y/N]: ").strip().upper()
     if response == 'Y':
-        print("\nGreat! Verifying APK location...")
-        if apk_path.exists():
-            size_mb = apk_path.stat().st_size / (1024 * 1024)
-            print(f"  ✓ APK found: {apk_path} ({size_mb:.2f} MB)")
-            return True
+        print("\nGreat! Verifying APK locations...")
+        
+        # Verificar ambos
+        found_any = False
+        
+        if standard_apk.exists():
+            size_mb = standard_apk.stat().st_size / (1024 * 1024)
+            print(f"  ✓ Standard APK found: {standard_apk} ({size_mb:.2f} MB)")
+            found_any = True
         else:
-            print(f"  ✗ APK not found at: {apk_path}")
+            print(f"  ✗ Standard APK not found: {standard_apk}")
+        
+        if business_apk.exists():
+            size_mb = business_apk.stat().st_size / (1024 * 1024)
+            print(f"  ✓ Business APK found: {business_apk} ({size_mb:.2f} MB)")
+            found_any = True
+        else:
+            print(f"  ✗ Business APK not found: {business_apk}")
+        
+        if not found_any:
             print(f"\n  Common issues:")
-            print(f"    - Wrong filename (must be exactly 'LegacyWhatsApp.apk')")
+            print(f"    - Wrong filename (must be exactly 'LegacyWhatsApp.apk' or 'LegacyWhatsAppBusiness.apk')")
             print(f"    - Wrong location (must be in 'apk/' folder)")
             print(f"    - File still downloading")
             print(f"\n  Current apk/ directory contents:")
@@ -116,10 +159,12 @@ def download_legacy_apk():
                         print(f"    - {f.name}")
                 else:
                     print(f"    (empty)")
-            print(f"\n  Please move/rename the APK to: apk\\LegacyWhatsApp.apk")
+            print(f"\n  Please move/rename the APK(s) to apk\\ folder")
             return False
+        
+        return True
     
-    print("\n  Please download the APK first, then run setup again.")
+    print("\n  Please download at least one APK, then run setup again.")
     return False
 
 
