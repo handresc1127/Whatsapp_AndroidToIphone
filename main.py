@@ -2,6 +2,7 @@ import os
 import tarfile
 import shutil
 import sqlite3
+import subprocess
 
 req_file_list = {'bin': ['adb.exe', 'AdbWinApi.dll','AdbWinUsbApi.dll','LegacyWhatsApp.apk'],'.':['migrate.py']}
 iphone_backup_root_locs = [
@@ -16,15 +17,26 @@ print('\nWhatsApp android to ios transferrer\n')
 adb_command = 'bin\\adb.exe'
 if not os.path.exists(adb_command):
     print('bin\\adb.exe not found, trying system adb command...')
-    # Verificar si adb está en PATH
+    # Verificar si adb está en PATH usando subprocess
     try:
-        result = os.system('adb version >nul 2>&1')
-        if result == 0:
+        result = subprocess.run(
+            ['adb', 'version'],
+            capture_output=True,
+            timeout=5,
+            text=True
+        )
+        if result.returncode == 0:
             adb_command = 'adb'
-            print('[OK] Using system adb command')
+            # Extraer ubicación del ADB
+            adb_location = 'system PATH'
+            for line in result.stdout.split('\n'):
+                if 'Installed as' in line:
+                    adb_location = line.split('Installed as')[1].strip()
+                    break
+            print(f'[OK] Using system adb: {adb_location}')
         else:
             raise Exception('ADB not in PATH')
-    except:
+    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
         print('\n[ERROR] ADB not found!')
         print('Please either:')
         print('  1. Place adb.exe in bin/ directory (see bin/README.md), or')
@@ -34,10 +46,14 @@ if not os.path.exists(adb_command):
 else:
     print('[OK] Using bin\\adb.exe')
 
+# Validar archivos requeridos
 for dirname in req_file_list:
     for filename in req_file_list[dirname]:
         # Omitir validación de adb.exe si ya lo validamos arriba
         if filename == 'adb.exe':
+            continue
+        # Omitir DLLs si estamos usando ADB del sistema
+        if filename in ['AdbWinApi.dll', 'AdbWinUsbApi.dll'] and adb_command == 'adb':
             continue
         path = os.path.join(dirname,filename)
         if not os.path.exists(path):
