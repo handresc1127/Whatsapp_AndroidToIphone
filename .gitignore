@@ -205,3 +205,47 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ============================================
+# WhatsApp Migration Specific
+# ============================================
+
+# Temporary files
+tmp/
+out/
+
+# Backup files
+backups/
+*.backup
+
+# Log files
+logs/
+migration_*.log
+
+# Database files (sensitive data)
+*.db
+*.sqlite
+*.sqlite3
+
+# Android backup files
+*.ab
+*.tar
+
+# APK files (download separately)
+apk/*.apk
+
+# ADB binaries (download separately)
+bin/adb.exe
+bin/AdbWinApi.dll
+bin/AdbWinUsbApi.dll
+
+# iOS backup directories
+Backup.~/
+
+# IDE specific
+.vscode/
+.idea/
+
+# OS specific
+.DS_Store
+Thumbs.db

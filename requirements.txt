@@ -1,0 +1,79 @@
+# WhatsApp Android → iOS Migration Tool
+# ======================================
+# 
+# This project uses ONLY Python Standard Library modules.
+# No external dependencies required for core functionality.
+#
+# Python Version: 3.8+
+#
+# Core Standard Library Modules Used:
+# - sqlite3: Database manipulation (Android msgstore.db, iOS ChatStorage.sqlite)
+# - subprocess: ADB command execution
+# - pathlib: Cross-platform path handling
+# - logging: Structured logging to files and console
+# - json: Parsing iTunes backup Manifest.db
+# - shutil: File operations and backups
+# - datetime: Timestamp conversions
+# - zipfile: .ab backup extraction (if using Python implementation)
+# - struct: Binary data parsing
+# - argparse: CLI argument parsing
+# - typing: Type hints for better code quality
+#
+# ======================================
+# Optional Development Dependencies
+# ======================================
+# (Uncomment below to install for development/testing)
+
+# Code quality and linting
+# pylint>=3.0.0
+# flake8>=6.0.0
+# black>=23.0.0
+# mypy>=1.0.0
+
+# Testing
+# pytest>=7.4.0
+# pytest-cov>=4.1.0
+
+# Documentation
+# sphinx>=7.0.0
+# sphinx-rtd-theme>=1.3.0
+
+# ======================================
+# External Binary Dependencies
+# ======================================
+# These are NOT Python packages. Download manually:
+#
+# 1. Android Debug Bridge (ADB):
+#    - Windows: https://developer.android.com/tools/releases/platform-tools
+#    - Extract adb.exe, AdbWinApi.dll, AdbWinUsbApi.dll to bin/
+#    - See: bin/README.md for detailed instructions
+#
+# 2. Legacy WhatsApp APKs:
+#    - Versions: 2.11.431 - 2.11.498 (required for Android backup)
+#    - Source: APKMirror or APKPure (legal download only)
+#    - Place in: apk/
+#    - See: apk/README.md for legal considerations
+#
+# 3. iTunes (Windows) or Finder (macOS):
+#    - For iOS device backup creation
+#    - https://www.apple.com/itunes/
+#
+# ======================================
+# Installation
+# ======================================
+# Since there are no Python package dependencies, no installation needed.
+# Just ensure Python 3.8+ is installed:
+#
+#   python --version  # Should be 3.8 or higher
+#
+# To install optional development dependencies:
+#
+#   pip install -r requirements.txt  # (after uncommenting desired packages above)
+#
+# ======================================
+# Verification
+# ======================================
+# To verify all modules can be imported:
+#
+#   python -c "import src; print('✅ All modules imported successfully')"
+#
