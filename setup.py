@@ -114,11 +114,18 @@ def check_migrate_script():
     """Verifica que migrate.py exista."""
     print("\nChecking migration script...")
     
+    # Buscar en src/migrate.py (proyecto modular)
+    if os.path.exists('src/migrate.py'):
+        print("  ✓ src/migrate.py found")
+        return True
+    
+    # Buscar en raíz (proyecto legacy)
     if os.path.exists('migrate.py'):
         print("  ✓ migrate.py found")
         return True
     
     print("  ✗ migrate.py not found!")
+    print("    Expected location: src/migrate.py")
     print("    This is a required component for the migration process.")
     return False
 
