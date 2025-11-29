@@ -10,7 +10,7 @@ import shutil
 import sqlite3
 from typing import Optional, Tuple
 
-from utils import ensure_directory, create_backup, validate_sqlite_database
+from .utils import ensure_directory, create_backup, validate_sqlite_database
 
 
 class IOSBackupManager:

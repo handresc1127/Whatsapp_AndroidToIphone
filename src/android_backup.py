@@ -9,7 +9,7 @@ import os
 import tarfile
 from typing import Optional
 
-from utils import run_adb_command, ensure_directory, clean_directory, print_step, get_adb_command
+from .utils import run_adb_command, ensure_directory, clean_directory, print_step, get_adb_command
 
 
 class AndroidBackupManager:
